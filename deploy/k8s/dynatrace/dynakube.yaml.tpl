@@ -25,22 +25,12 @@ spec:
   telemetryIngest:
     protocols:
       - otlp
-  templates:
-    logMonitoring:
-      imageRef:
-        repository: "${LOGMONITORING_IMAGE_REPOSITORY}"
-        tag: "${LOGMONITORING_IMAGE_TAG}"
-    otelCollector:
-      imageRef:
-        repository: "${OTEL_COLLECTOR_IMAGE_REPOSITORY}"
-        tag: "${OTEL_COLLECTOR_IMAGE_TAG}"
   oneAgent:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
           nebulatrace.dev/oneagent: "true"
   activeGate:
-    image: "${ACTIVEGATE_IMAGE}"
     capabilities:
       - kubernetes-monitoring
       - routing

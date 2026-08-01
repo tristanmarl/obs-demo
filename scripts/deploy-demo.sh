@@ -25,12 +25,18 @@ fi
 
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-nebulatrace}"
 export IMAGE_TAG="${IMAGE_TAG:-dev}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.release_stage=demo,primary_tags.env=demo,deployment.release_version=0.1.0,primary_tags.version=0.1.0,primary_tags.app=nebulatrace,k8s.namespace.label.team=service-monitoring,dt.owner=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
-export FAAS_TRIGGER_DELAY_MS="${FAAS_TRIGGER_DELAY_MS:-5000}"
-export RPC_PROBE_DELAY_MS="${RPC_PROBE_DELAY_MS:-2500}"
+export WEBHOOK_DELAY_MS="${WEBHOOK_DELAY_MS:-5000}"
+export FAAS_PROVIDER="${FAAS_PROVIDER:-aws}"
+export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
+export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
+export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
+export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
+export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
+export QUOTA_LIMIT="${QUOTA_LIMIT:-10}"
 
 if [ -n "$IMAGE_REGISTRY_OVERRIDE" ]; then
   export IMAGE_REGISTRY="$IMAGE_REGISTRY_OVERRIDE"
@@ -51,5 +57,5 @@ envsubst < deploy/k8s/data/data.yaml | kubectl apply -f -
 envsubst < deploy/k8s/app/app.yaml.tpl | kubectl apply -f -
 kubectl apply -f deploy/k8s/istio/istio.yaml
 
-kubectl -n nebulatrace rollout status deployment/command-api --timeout=180s || true
+kubectl -n nebulatrace rollout status deployment/platform-api --timeout=180s || true
 kubectl -n nebulatrace get pods

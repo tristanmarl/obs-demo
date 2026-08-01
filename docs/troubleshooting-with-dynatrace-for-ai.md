@@ -1,18 +1,11 @@
-# Troubleshooting With dynatrace-for-ai
+# Troubleshooting the incident assistant
 
-NebulaTrace includes prompts for the `dynatrace-for-ai` project so an operator
-can ask an AI agent to inspect a Dynatrace incident.
+The incident assistant is an optional path from `platform-api` to `incident-assistant` to `mock-llm`. It is a deterministic local mock, not a real provider.
 
-Install the skills:
+1. Trigger `Incident recommendation` in the portal or `curl -i /api/incidents/recommendation`.
+2. Expect a recommendation and a trace with `gen_ai.*` model/provider/token attributes.
+3. In Dynatrace, open the service flow from `platform-api` to `incident-assistant` and then the HTTP call to `mock-llm`; inspect latency and error status.
+4. Apply the `ai-latency` scenario to make `mock-llm` sleep for two seconds.
+5. Reset with `make reset` and confirm recommendation latency returns to baseline.
 
-```bash
-npx skills add dynatrace/dynatrace-for-ai
-```
-
-Use the prompts in `ai/prompts/` after triggering a scenario. The prompts are
-written to point the agent at Dynatrace entities, traces, logs, metrics, and
-service relationships instead of guessing from app symptoms alone.
-
-Project:
-
-- https://github.com/Dynatrace/dynatrace-for-ai
+Prompt and response bodies are deliberately absent from spans and metrics. A 503 means the mock call failed or timed out; the facade does not convert that failure to a successful response.

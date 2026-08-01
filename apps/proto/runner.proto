@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package nebulatrace.runner;
+
+service Runner {
+  rpc ExecuteRelease(ExecuteReleaseRequest) returns (ExecuteReleaseReply);
+}
+
+message ExecuteReleaseRequest {
+  string release_id = 1;
+  string service = 2;
+  string version = 3;
+  string environment = 4;
+}
+
+message ExecuteReleaseReply {
+  string status = 1;
+  string message = 2;
+}

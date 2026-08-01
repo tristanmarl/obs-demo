@@ -26,11 +26,6 @@ fi
 
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
 export DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
-export ACTIVEGATE_IMAGE="${ACTIVEGATE_IMAGE:-docker.io/dynatrace/dynatrace-activegate:1.339.39.20260605-153224}"
-export LOGMONITORING_IMAGE_REPOSITORY="${LOGMONITORING_IMAGE_REPOSITORY:-public.ecr.aws/dynatrace/dynatrace-logmodule}"
-export LOGMONITORING_IMAGE_TAG="${LOGMONITORING_IMAGE_TAG:-1.339.51.20260603-143443}"
-export OTEL_COLLECTOR_IMAGE_REPOSITORY="${OTEL_COLLECTOR_IMAGE_REPOSITORY:-public.ecr.aws/dynatrace/dynatrace-otel-collector}"
-export OTEL_COLLECTOR_IMAGE_TAG="${OTEL_COLLECTOR_IMAGE_TAG:-latest}"
 
 DT_API_URL="${DT_TENANT_URL%/}"
 DT_API_URL="${DT_API_URL/.apps./.}"
@@ -38,7 +33,7 @@ export DT_API_URL
 
 kubectl apply -f deploy/k8s/namespaces.yaml
 helm upgrade --install dynatrace-operator oci://public.ecr.aws/dynatrace/dynatrace-operator \
-  --version 1.10.0-rc.0 \
+  --version 1.10.1 \
   --namespace dynatrace \
   --create-namespace \
   --atomic

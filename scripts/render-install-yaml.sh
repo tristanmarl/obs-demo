@@ -27,12 +27,18 @@ fi
 
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/nebulatrace}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.release_stage=demo,primary_tags.env=demo,deployment.release_version=0.1.0,primary_tags.version=0.1.0,primary_tags.app=nebulatrace,k8s.namespace.label.team=service-monitoring,dt.owner=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
-export FAAS_TRIGGER_DELAY_MS="${FAAS_TRIGGER_DELAY_MS:-5000}"
-export RPC_PROBE_DELAY_MS="${RPC_PROBE_DELAY_MS:-2500}"
+export WEBHOOK_DELAY_MS="${WEBHOOK_DELAY_MS:-5000}"
+export FAAS_PROVIDER="${FAAS_PROVIDER:-aws}"
+export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
+export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
+export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
+export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
+export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
+export QUOTA_LIMIT="${QUOTA_LIMIT:-10}"
 
 if ! command -v envsubst >/dev/null 2>&1; then
   echo "envsubst is required. Install gettext-base."

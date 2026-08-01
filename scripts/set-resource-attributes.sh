@@ -35,7 +35,7 @@ current_from_env() {
 }
 
 current_from_cluster() {
-  kubectl -n "$APP_NAMESPACE" get deploy command-api \
+  kubectl -n "$APP_NAMESPACE" get deploy platform-api \
     -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="OTEL_RESOURCE_ATTRIBUTES")].value}' \
     2>/dev/null || true
 }
@@ -70,7 +70,7 @@ show_current() {
   echo "From .env:"
   current_from_env || true
   echo
-  echo "From cluster command-api:"
+  echo "From cluster platform-api:"
   current_from_cluster || true
   echo
 }
@@ -119,9 +119,15 @@ echo
 
 update_env_file "$new_attrs"
 
-kubectl -n "$APP_NAMESPACE" set env deployment --all "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
-kubectl -n "$DATA_NAMESPACE" set env deployment --all "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
-kubectl -n "$DATA_NAMESPACE" set env statefulset --all "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
+for deployment in engineering-portal platform-api artifact-api release-api quota-api deployment-worker audit-api incident-assistant mock-llm webhook-function runner-agent load-generator; do
+  kubectl -n "$APP_NAMESPACE" set env "deployment/$deployment" "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
+done
+for deployment in redis; do
+  kubectl -n "$DATA_NAMESPACE" set env "deployment/$deployment" "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
+done
+for statefulset in postgres activemq; do
+  kubectl -n "$DATA_NAMESPACE" set env "statefulset/$statefulset" "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
+done
 
 "$ROOT/scripts/restart-workloads.sh"
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-nebulatrace}"
 IMAGE_TAG="${IMAGE_TAG:-dev}"
-SERVICES="bridge-ui command-api cargo-api mission-api credits-api drone-worker maintenance-api orbit-ai mock-llm load-generator faas-trigger rpc-target rpc-probe"
+SERVICES="engineering-portal platform-api artifact-api release-api quota-api deployment-worker audit-api incident-assistant mock-llm load-generator webhook-function runner-agent"
 
 for service in $SERVICES; do
   image="${IMAGE_REGISTRY}/${service}:${IMAGE_TAG}"

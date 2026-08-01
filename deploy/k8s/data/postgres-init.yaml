@@ -5,52 +5,21 @@ metadata:
   namespace: nebulatrace-data
 data:
   001-schema.sql: |
-    create table if not exists crew (
-      id serial primary key,
-      name text not null
-    );
-    create table if not exists cargo (
+    create table if not exists artifacts (
       sku text primary key,
       name text not null,
       stock integer not null
     );
-    create table if not exists missions (
+    create table if not exists releases (
       id text primary key,
-      title text not null,
+      service text not null,
+      version text not null,
+      environment text not null,
       status text not null,
       created_at timestamptz not null default now()
     );
-    create table if not exists mission_items (
-      id serial primary key,
-      mission_id text references missions(id),
-      sku text references cargo(sku)
-    );
-    create table if not exists drone_jobs (
-      id serial primary key,
-      mission_id text,
-      status text not null,
-      created_at timestamptz not null default now()
-    );
-    create table if not exists maintenance_events (
-      id serial primary key,
-      mission_id text,
-      detail text,
-      created_at timestamptz not null default now()
-    );
-    create table if not exists ai_sessions (
-      id serial primary key,
-      prompt_type text,
-      status text,
-      created_at timestamptz not null default now()
-    );
-    create table if not exists entropy_events (
-      id serial primary key,
-      mode text not null,
-      created_at timestamptz not null default now()
-    );
-    insert into cargo(sku, name, stock) values
-      ('QCOIL-7', 'Quantum Coil', 12),
-      ('NEB-DRONE', 'Nebula Repair Drone', 8),
-      ('COFFEE-SYNTH', 'Coffee Synthesizer Core', 1),
-      ('GRAV-BOOT', 'Gravity Boots', 24)
+    insert into artifacts(sku, name, stock) values
+      ('checkout-service', 'Checkout service artifact', 12),
+      ('payments-service', 'Payments service artifact', 8),
+      ('customer-portal', 'Customer portal artifact', 24)
     on conflict (sku) do nothing;

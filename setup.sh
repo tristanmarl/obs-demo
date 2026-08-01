@@ -18,19 +18,20 @@ fi
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
 export DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
 export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-nebulatrace-demo}"
-export ACTIVEGATE_IMAGE="${ACTIVEGATE_IMAGE:-docker.io/dynatrace/dynatrace-activegate:1.339.39.20260605-153224}"
-export LOGMONITORING_IMAGE_REPOSITORY="${LOGMONITORING_IMAGE_REPOSITORY:-public.ecr.aws/dynatrace/dynatrace-logmodule}"
-export LOGMONITORING_IMAGE_TAG="${LOGMONITORING_IMAGE_TAG:-1.339.51.20260603-143443}"
-export OTEL_COLLECTOR_IMAGE_REPOSITORY="${OTEL_COLLECTOR_IMAGE_REPOSITORY:-public.ecr.aws/dynatrace/dynatrace-otel-collector}"
-export OTEL_COLLECTOR_IMAGE_TAG="${OTEL_COLLECTOR_IMAGE_TAG:-latest}"
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/nebulatrace}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.release_stage=demo,primary_tags.env=demo,deployment.release_version=0.1.0,primary_tags.version=0.1.0,primary_tags.app=nebulatrace,k8s.namespace.label.team=service-monitoring,dt.owner=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
-export FAAS_TRIGGER_DELAY_MS="${FAAS_TRIGGER_DELAY_MS:-5000}"
-export RPC_PROBE_DELAY_MS="${RPC_PROBE_DELAY_MS:-2500}"
+export WEBHOOK_DELAY_MS="${WEBHOOK_DELAY_MS:-5000}"
+export FAAS_PROVIDER="${FAAS_PROVIDER:-aws}"
+export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
+export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
+export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
+export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
+export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
+export QUOTA_LIMIT="${QUOTA_LIMIT:-10}"
 
 DT_API_URL="${DT_TENANT_URL%/}"
 DT_API_URL="${DT_API_URL/.apps./.}"
@@ -55,29 +56,7 @@ kubectl cluster-info --request-timeout=10s >/dev/null
 # ── Namespaces ────────────────────────────────────────────────────────────────
 
 step "Creating namespaces"
-kubectl apply -f - <<YAML
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: dynatrace
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: nebulatrace
-  labels:
-    istio-injection: enabled
-    nebulatrace.dev/otel: "true"
-    nebulatrace.dev/oneagent: "true"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: nebulatrace-data
-  labels:
-    istio-injection: disabled
-    nebulatrace.dev/oneagent: "true"
-YAML
+kubectl apply -f deploy/k8s/namespaces.yaml
 
 # ── Istio ─────────────────────────────────────────────────────────────────────
 
@@ -108,9 +87,9 @@ rm -f "$meshconfig"
 
 # ── Dynatrace Operator ────────────────────────────────────────────────────────
 
-step "Installing Dynatrace Operator (v1.10.0-rc.0)"
+step "Installing Dynatrace Operator (v1.10.1)"
 helm upgrade --install dynatrace-operator oci://public.ecr.aws/dynatrace/dynatrace-operator \
-  --version 1.10.0-rc.0 \
+  --version 1.10.1 \
   --namespace dynatrace \
   --create-namespace \
   --atomic
@@ -145,22 +124,12 @@ spec:
   telemetryIngest:
     protocols:
       - otlp
-  templates:
-    logMonitoring:
-      imageRef:
-        repository: "${LOGMONITORING_IMAGE_REPOSITORY}"
-        tag: "${LOGMONITORING_IMAGE_TAG}"
-    otelCollector:
-      imageRef:
-        repository: "${OTEL_COLLECTOR_IMAGE_REPOSITORY}"
-        tag: "${OTEL_COLLECTOR_IMAGE_TAG}"
   oneAgent:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
           nebulatrace.dev/oneagent: "true"
   activeGate:
-    image: "${ACTIVEGATE_IMAGE}"
     capabilities:
       - kubernetes-monitoring
       - routing
@@ -197,7 +166,7 @@ else
 fi
 
 step "Waiting for app rollout"
-kubectl -n nebulatrace rollout status deployment/command-api --timeout=180s || true
+kubectl -n nebulatrace rollout status deployment/platform-api --timeout=180s || true
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 

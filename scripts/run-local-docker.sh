@@ -15,95 +15,57 @@ start = text.index("    create table")
 print("\n".join(line[4:] if line.startswith("    ") else line for line in text[start:].splitlines()))
 PY
 
-docker run -d --name nebulatrace-postgres --network nebulatrace \
-  --network-alias postgres \
-  -e POSTGRES_USER=nebulatrace \
-  -e POSTGRES_PASSWORD=nebulatrace \
-  -e POSTGRES_DB=nebulatrace \
-  -v /tmp/nebulatrace-init.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro \
-  postgres:16-alpine >/dev/null
-
-docker run -d --name nebulatrace-activemq --network nebulatrace \
-  --network-alias activemq \
-  apache/activemq-classic:6.1.7 >/dev/null
-
-docker run -d --name nebulatrace-redis --network nebulatrace \
-  --network-alias redis \
-  redis:7-alpine >/dev/null
+docker run -d --name nebulatrace-postgres --network nebulatrace --network-alias postgres \
+  -e POSTGRES_USER=nebulatrace -e POSTGRES_PASSWORD=nebulatrace -e POSTGRES_DB=nebulatrace \
+  -v /tmp/nebulatrace-init.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro postgres:16-alpine >/dev/null
+docker run -d --name nebulatrace-activemq --network nebulatrace --network-alias activemq apache/activemq-classic:6.1.7 >/dev/null
+docker run -d --name nebulatrace-redis --network nebulatrace --network-alias redis redis:7-alpine >/dev/null
 
 for _ in $(seq 1 40); do
   docker exec nebulatrace-postgres pg_isready -U nebulatrace >/dev/null 2>&1 && break
   sleep 1
 done
-
 for _ in $(seq 1 60); do
   docker exec nebulatrace-activemq bash -lc 'test -S /tmp/activemq/activemq.pid || pgrep -f activemq' >/dev/null 2>&1 && break
   sleep 1
 done
 
 otel_env=(-e OTEL_TRACES_EXPORTER=none -e OTEL_METRICS_EXPORTER=none -e OTEL_LOGS_EXPORTER=none)
+image="${IMAGE_REGISTRY:-nebulatrace}"
+tag="${IMAGE_TAG:-dev}"
 
-docker run -d --name nebulatrace-maintenance-api --network nebulatrace \
-  --network-alias maintenance-api \
-  "${IMAGE_REGISTRY:-nebulatrace}/maintenance-api:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-cargo-api --network nebulatrace \
-  --network-alias cargo-api \
+docker run -d --name nebulatrace-artifact-api --network nebulatrace --network-alias artifact-api \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/nebulatrace \
-  -e SPRING_DATASOURCE_USERNAME=nebulatrace \
-  -e SPRING_DATASOURCE_PASSWORD=nebulatrace \
-  "${IMAGE_REGISTRY:-nebulatrace}/cargo-api:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-credits-api --network nebulatrace \
-  --network-alias credits-api \
-  -e REDIS_URL=redis://redis:6379 \
-  "${IMAGE_REGISTRY:-nebulatrace}/credits-api:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-mock-llm --network nebulatrace \
-  --network-alias mock-llm \
-  "${otel_env[@]}" \
-  "${IMAGE_REGISTRY:-nebulatrace}/mock-llm:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-orbit-ai --network nebulatrace \
-  --network-alias orbit-ai \
-  "${otel_env[@]}" \
-  -e LLM_URL=http://mock-llm:8080 \
-  "${IMAGE_REGISTRY:-nebulatrace}/orbit-ai:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-mission-api --network nebulatrace \
-  --network-alias mission-api \
-  "${otel_env[@]}" \
-  -e DATABASE_URL=postgresql://nebulatrace:nebulatrace@postgres:5432/nebulatrace \
-  -e ACTIVEMQ_HOST=activemq \
-  -e ACTIVEMQ_STOMP_PORT=61613 \
-  "${IMAGE_REGISTRY:-nebulatrace}/mission-api:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-drone-worker --network nebulatrace \
-  --network-alias drone-worker \
-  "${otel_env[@]}" \
-  -e DATABASE_URL=postgresql://nebulatrace:nebulatrace@postgres:5432/nebulatrace \
-  -e ACTIVEMQ_HOST=activemq \
-  -e ACTIVEMQ_STOMP_PORT=61613 \
-  -e MAINTENANCE_URL=http://maintenance-api:8080 \
-  "${IMAGE_REGISTRY:-nebulatrace}/drone-worker:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-command-api --network nebulatrace \
-  --network-alias command-api \
-  -e CARGO_URL=http://cargo-api:8080 \
-  -e MISSION_URL=http://mission-api:8080 \
-  -e CREDITS_URL=http://credits-api:8080 \
-  -e ORBIT_URL=http://orbit-ai:8080 \
-  "${IMAGE_REGISTRY:-nebulatrace}/command-api:${IMAGE_TAG:-dev}" >/dev/null
-
+  -e SPRING_DATASOURCE_USERNAME=nebulatrace -e SPRING_DATASOURCE_PASSWORD=nebulatrace \
+  "$image/artifact-api:$tag" >/dev/null
+docker run -d --name nebulatrace-quota-api --network nebulatrace --network-alias quota-api \
+  -e REDIS_URL=redis://redis:6379 "$image/quota-api:$tag" >/dev/null
+docker run -d --name nebulatrace-audit-api --network nebulatrace --network-alias audit-api \
+  "$image/audit-api:$tag" >/dev/null
+docker run -d --name nebulatrace-mock-llm --network nebulatrace --network-alias mock-llm \
+  "${otel_env[@]}" "$image/mock-llm:$tag" >/dev/null
+docker run -d --name nebulatrace-incident-assistant --network nebulatrace --network-alias incident-assistant \
+  "${otel_env[@]}" -e LLM_URL=http://mock-llm:8080 "$image/incident-assistant:$tag" >/dev/null
+docker run -d --name nebulatrace-runner-agent --network nebulatrace --network-alias runner-agent \
+  "${otel_env[@]}" "$image/runner-agent:$tag" >/dev/null
+docker run -d --name nebulatrace-release-api --network nebulatrace --network-alias release-api \
+  "${otel_env[@]}" -e DATABASE_URL=postgresql://nebulatrace:nebulatrace@postgres:5432/nebulatrace \
+  -e ACTIVEMQ_HOST=activemq -e ACTIVEMQ_STOMP_PORT=61613 "$image/release-api:$tag" >/dev/null
+docker run -d --name nebulatrace-deployment-worker --network nebulatrace --network-alias deployment-worker \
+  "${otel_env[@]}" -e DATABASE_URL=postgresql://nebulatrace:nebulatrace@postgres:5432/nebulatrace \
+  -e ACTIVEMQ_HOST=activemq -e ACTIVEMQ_STOMP_PORT=61613 -e AUDIT_URL=http://audit-api:8080 \
+  -e RUNNER_ADDRESS=runner-agent:50051 "$image/deployment-worker:$tag" >/dev/null
+docker run -d --name nebulatrace-platform-api --network nebulatrace --network-alias platform-api \
+  -e ARTIFACT_URL=http://artifact-api:8080 -e QUOTA_URL=http://quota-api:8080 \
+  -e RELEASE_URL=http://release-api:8080 -e INCIDENT_ASSISTANT_URL=http://incident-assistant:8080 \
+  "$image/platform-api:$tag" >/dev/null
+docker run -d --name nebulatrace-webhook-function --network nebulatrace \
+  "${otel_env[@]}" -e PLATFORM_URL=http://platform-api:8080 "$image/webhook-function:$tag" >/dev/null
 docker run -d --name nebulatrace-load-generator --network nebulatrace \
-  -e COMMAND_URL=http://command-api:8080 \
-  -e LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}" \
-  -e LOADGEN_BURST="${LOADGEN_BURST:-1}" \
-  "${IMAGE_REGISTRY:-nebulatrace}/load-generator:${IMAGE_TAG:-dev}" >/dev/null
-
-docker run -d --name nebulatrace-bridge-ui --network nebulatrace \
-  -p 18000:8080 \
-  "${IMAGE_REGISTRY:-nebulatrace}/bridge-ui:${IMAGE_TAG:-dev}" >/dev/null
+  -e PLATFORM_URL=http://platform-api:8080 -e LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}" \
+  -e LOADGEN_BURST="${LOADGEN_BURST:-1}" "$image/load-generator:$tag" >/dev/null
+docker run -d --name nebulatrace-engineering-portal --network nebulatrace -p 18000:8080 \
+  "$image/engineering-portal:$tag" >/dev/null
 
 ready=false
 for _ in $(seq 1 30); do
@@ -115,7 +77,7 @@ for _ in $(seq 1 30); do
 done
 
 if [ "$ready" != true ]; then
-  echo "NebulaTrace did not become ready. Check logs with: docker logs nebulatrace-bridge-ui" >&2
+  echo "NebulaTrace did not become ready. Check logs with: docker logs nebulatrace-engineering-portal" >&2
   exit 1
 fi
 

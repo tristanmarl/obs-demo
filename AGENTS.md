@@ -1,185 +1,54 @@
 # AGENTS.md
 
-Guidance for coding agents working on NebulaTrace.
+NebulaTrace is a small Kubernetes software-delivery observability lab. Keep it understandable in one sitting and preserve the mixed OneAgent/OpenTelemetry demonstration.
 
-## Project Intent
+## Architecture
 
-NebulaTrace is a beginner-friendly Dynatrace Kubernetes observability demo. Keep
-it realistic enough to run, but small enough to understand in one sitting.
+- Namespaces stay `nebulatrace` and `nebulatrace-data`; Istio sidecars are enabled only for the app namespace.
+- Keep PostgreSQL, Redis, ActiveMQ Classic, Istio, Dynatrace Operator, OneAgent, and OTLP auto-configuration.
+- Main flow: `platform-api -> release-api -> PostgreSQL -> ActiveMQ deployments.requested -> deployment-worker -> runner-agent -> audit-api`.
+- Supporting flows: `platform-api -> artifact-api -> PostgreSQL`, `platform-api -> quota-api -> Redis`, and `platform-api -> incident-assistant -> mock-llm`.
+- `webhook-function` is a simulated SCM release webhook, not a real cloud function runtime.
+- Keep React/Vite, Node/Fastify, Java/Spring Boot, Go, and Python/FastAPI. Do not add Helm, Kustomize, Terraform, a frontend component library, a shared service framework, or dashboards.
 
-The demo should show:
+## Development
 
-- Kubernetes app/service topology
-- Dynatrace Operator, OneAgent, standalone Log Agent, and OTLP auto-config
-- OpenTelemetry traces, metrics, and logs
-- Istio mesh traffic and Envoy OTLP tracing
-- ActiveMQ Classic monitored through OneAgent/JVM/JMX-style visibility
-- Constant demo load with some successful and failing requests
-- Mocked FaaS-style trigger telemetry through `faas-trigger`
-- gRPC/RPC telemetry through `rpc-probe -> rpc-target`
-- AI-themed telemetry through `orbit-ai` and `mock-llm`
-
-## Style
-
-- Prefer the simplest thing that works.
-- Avoid framework churn, platform rewrites, and speculative abstractions.
-- Keep services small and explicit.
-- Favor standard library code where it is clear enough.
-- Use Dockerfiles as the build boundary. Do not require local Node, Go, Maven,
-  Java, or Python packages for normal build/test flows.
-- Keep docs practical: commands that work, expected results, and short
-  troubleshooting notes.
-
-## Security
-
-- Never commit `.env`, real Dynatrace tokens, GHCR tokens, tenant-specific
-  secrets, or kubeconfigs.
-- Before committing, run a quick secret check such as:
-
-  ```bash
-  git grep -n dt0 -- . ':!.env'
-  git grep -n <tenant-domain> -- . ':!.env'
-  git grep -n live.dynatrace.com -- . ':!.env'
-  ```
-
-- `.env.example` must contain placeholders only.
-- If a token was exposed during debugging, tell the user to rotate it.
-
-## Architecture Choices
-
-- Queue: ActiveMQ Classic, not RabbitMQ.
-- Database: PostgreSQL.
-- Cache: Redis.
-- Mesh: Istio sidecars for app services in `nebulatrace`.
-- Data namespace: `nebulatrace-data`, Istio disabled, OneAgent enabled for
-  ActiveMQ.
-- Constant load: `load-generator` runs in Kubernetes by default.
-- Mocked FaaS trigger: `faas-trigger` emits OTel spans with `faas.trigger`
-  attributes for AWS Lambda, Azure Functions, and Google Cloud Functions, then
-  calls `command-api`.
-- RPC demo: `rpc-probe` calls `rpc-target` over gRPC and intentionally produces
-  `OK`, `NOT_FOUND`, `INVALID_ARGUMENT`, `INTERNAL`, and deadline statuses.
-- Failing traffic: the load generator intentionally emits some 500s and 404s.
-
-## Dynatrace Choices
-
-- Dynatrace Operator is installed from the OCI chart.
-- OneAgent application monitoring is used for selected workloads.
-- Standalone Log Agent is enabled with `spec.logMonitoring`.
-- OTel workloads rely on Dynatrace Operator OTLP auto-configuration.
-- Do not hardcode OTLP endpoints or tokens in application code.
-- Shared release/environment context is a plain comma-separated
-  `OTEL_RESOURCE_ATTRIBUTES` value from `.env`, passed to every container
-  without mapping logic. Do not set `service.name` in this shared value.
-- Istio traces use an OpenTelemetry extension provider that sends Envoy spans to
-  the Dynatrace Operator telemetry ingest service:
-  `${DYNAKUBE_NAME:-nebulatrace}-telemetry-ingest.dynatrace.svc.cluster.local:4318/v1/traces`.
-- ActiveMQ is OneAgent-injected so the Dynatrace Apache ActiveMQ Classic/JMX
-  extension can be enabled in the tenant.
-
-## Trace Stitching
-
-Topology depends on stitched traces. Preserve these rules:
-
-- FastAPI services should use OpenTelemetry FastAPI instrumentation.
-- Python HTTP clients should use OpenTelemetry `requests` instrumentation.
-- ActiveMQ publish/consume should propagate W3C context through STOMP headers.
-- Normal mission traffic should stitch as:
-
-  ```text
-  command-api -> mission-api -> ActiveMQ drone.jobs -> drone-worker -> maintenance-api
-  ```
-
-- AI traffic should stitch as:
-
-  ```text
-  command-api -> orbit-ai -> mock-llm
-  ```
-
-- Mock FaaS traffic should start as:
-
-  ```text
-  faas-trigger -> command-api -> mission-api
-  ```
-
-## Custom Metrics
-
-Keep service metrics domain-specific and demo-friendly. Current examples:
-
-- `nebulatrace.missions.created`
-- `nebulatrace.missions.failures`
-- `nebulatrace.missions.db.latency_ms`
-- `nebulatrace.missions.activemq.publish.latency_ms`
-- `nebulatrace.missions.activemq.published`
-- `nebulatrace.drone.jobs.consumed`
-- `nebulatrace.drone.jobs.failed`
-- `nebulatrace.drone.job.latency_ms`
-- `nebulatrace.drone.maintenance.latency_ms`
-- `nebulatrace.orbit.recommendations`
-- `nebulatrace.orbit.llm.latency_ms`
-- `nebulatrace.llm.calls`
-- `nebulatrace.llm.tokens`
-- `nebulatrace.llm.hallucinations`
-- `nebulatrace.faas.triggered`
-- `nebulatrace.faas.failures`
-- `nebulatrace.faas.downstream.latency_ms`
-
-## Local Verification
-
-For k3s/local work, prefer:
+Builds happen inside Docker:
 
 ```bash
-make k3s-load-images
-IMAGE_REGISTRY=nebulatrace IMAGE_TAG=dev ./scripts/deploy-demo.sh
-kubectl -n nebulatrace get pods
-kubectl -n nebulatrace-data get pods
-kubectl -n dynatrace get dynakube nebulatrace
+make verify
+make build-images
+make k3s-deploy
+make reset
 ```
 
-Useful runtime checks:
+Use `npm ci` where a lockfile exists. Dockerfiles remain build boundaries; verification must not depend on host language packages.
+
+## Contracts
+
+Release input is `{service, version, environment}`. Service is 1–80 ASCII lowercase letters, numbers, `-`, `_`, or `.`; version is 1–80 non-whitespace characters; environment is `development`, `test`, `staging`, or `production`.
+
+ActiveMQ carries minimal release JSON and W3C context in STOMP headers. The worker starts a consumer span, calls `Runner.ExecuteRelease` over gRPC, updates PostgreSQL, calls `audit-api` with `raise_for_status()`, and ACKs only after all required work succeeds. Failures propagate as failed HTTP/gRPC work and NACK the message.
+
+## Telemetry
+
+- `apps/otel_setup.py` is the only Python OTel setup helper.
+- OTel resources set `service.name` per workload, `service.namespace=nebulatrace`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION`/`IMAGE_TAG`.
+- Never put `service.name` in shared `OTEL_RESOURCE_ATTRIBUTES`.
+- Keep W3C propagation, current messaging attributes, current `gen_ai.*` attributes, seconds for duration histograms, and low-cardinality metric dimensions.
+- Never record prompt or response bodies.
+
+## Controls and security
+
+`platform-api` owns the scenario catalog and derives active state from explicit deployment reads plus the `quota-api` VirtualService. Mutation controls are disabled with `DEMO_CONTROLS_ENABLED=false`; this is a private demo control surface and intentionally has no production authentication.
+
+Resource-attribute validation is a trust boundary: 2,048 characters, 32 entries, non-empty key/value, key pattern `[A-Za-z][A-Za-z0-9_.-]{0,127}`, no duplicates, and no `service.name` or `service.instance.id`. RBAC uses exact `resourceNames` and no list permission.
+
+Never commit `.env`, real Dynatrace tokens, GHCR tokens, tenant URLs, or kubeconfigs. Before committing:
 
 ```bash
-kubectl -n nebulatrace logs deploy/load-generator -c load-generator --tail=50
-kubectl -n nebulatrace logs deploy/faas-trigger -c faas-trigger --tail=50
-kubectl -n nebulatrace logs deploy/rpc-probe -c rpc-probe --tail=50
-kubectl -n dynatrace logs statefulset/nebulatrace-otel-collector --tail=80
-kubectl -n dynatrace logs daemonset/nebulatrace-logmonitoring --tail=80
-kubectl -n nebulatrace-data describe pod activemq-0
+git grep -n dt0 -- . ':!.env'
+git grep -n live.dynatrace.com -- . ':!.env'
 ```
 
-ActiveMQ queue counter check:
-
-```bash
-kubectl -n nebulatrace-data exec activemq-0 -- wget -qO- \
-  --header='Origin: http://localhost:8161' \
-  --user=admin --password=admin \
-  'http://localhost:8161/api/jolokia/read/org.apache.activemq:type=Broker,brokerName=localhost,destinationType=Queue,destinationName=drone.jobs/QueueSize,EnqueueCount,DequeueCount,ConsumerCount'
-```
-
-Istio trace provider check:
-
-```bash
-python3 -c "import subprocess; data=subprocess.check_output(['istioctl','proxy-config','listeners','deployment/command-api.nebulatrace','-o','json'], text=True); print('\\n'.join(n for n in ['opentelemetry','telemetry-ingest','dynatrace'] if n in data.lower()))"
-```
-
-## Git And Images
-
-- Commit cohesive changes with clear messages.
-- Push repo changes to `main` when requested.
-- If app code changes, rebuild and push affected GHCR images.
-- If deploy manifests change, regenerate `deploy/dist/nebulatrace.yaml` with
-  `./scripts/render-install-yaml.sh --no-env`.
-- GHCR package visibility is separate from repository visibility. If packages
-  are private, users need an image pull secret.
-
-## Avoid
-
-- Do not reintroduce RabbitMQ unless explicitly requested.
-- Do not switch back to Classic Istio monitoring as the primary story.
-- Do not route Istio traces through a generic collector when the Operator
-  telemetry ingest endpoint is available.
-- Do not add a new dependency just for convenience if a tiny standard-library
-  solution is clear.
-- Do not add dashboards before telemetry shape is stable.
-- Do not hide errors by returning HTTP 200 from proxy/facade routes when the
-  downstream failed.
+`.env.example` contains placeholders only.

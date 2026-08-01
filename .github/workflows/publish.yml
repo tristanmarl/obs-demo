@@ -21,32 +21,30 @@ jobs:
       matrix:
         include:
           # Services with their own build context (apps/<service>)
-          - service: bridge-ui
+          - service: engineering-portal
             shared_ctx: false
-          - service: command-api
+          - service: platform-api
             shared_ctx: false
-          - service: cargo-api
+          - service: artifact-api
             shared_ctx: false
-          - service: credits-api
+          - service: quota-api
             shared_ctx: false
-          - service: maintenance-api
+          - service: audit-api
             shared_ctx: false
           - service: load-generator
             shared_ctx: false
           # Services that need the shared apps/ context (Dockerfile at apps/<service>/Dockerfile, context at apps/)
-          - service: drone-worker
+          - service: deployment-worker
             shared_ctx: true
-          - service: faas-trigger
+          - service: webhook-function
             shared_ctx: true
-          - service: orbit-ai
+          - service: incident-assistant
             shared_ctx: true
-          - service: mission-api
+          - service: release-api
             shared_ctx: true
           - service: mock-llm
             shared_ctx: true
-          - service: rpc-probe
-            shared_ctx: true
-          - service: rpc-target
+          - service: runner-agent
             shared_ctx: true
 
     steps:

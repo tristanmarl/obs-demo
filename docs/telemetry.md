@@ -1,53 +1,35 @@
-# Telemetry
+# Telemetry contract
 
-## Dynatrace Operator
+## Resource identity
 
-`deploy/k8s/dynatrace/dynakube.yaml.tpl` uses `dynatrace.com/v1beta6`, the
-recommended DynaKube API version for Dynatrace Operator 1.8+. The template
-enables:
+`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=nebulatrace`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
 
-- application monitoring for OneAgent opt-in pods
-- ActiveGate for Kubernetes monitoring and routing
-- log monitoring
-- OTLP exporter auto-configuration for traces, metrics, and logs
+Dynatrace Operator injects OTLP exporter configuration into the labeled namespace. OneAgent annotations remain on the OneAgent workloads. Kubernetes workload names equal service names so service detection has one engineering identity.
 
-Docs:
+## HTTP, database, and errors
 
-- https://docs.dynatrace.com/docs/ingest-from/setup-on-k8s/extend-observability-k8s/otlp-auto-config
-- https://docs.dynatrace.com/docs/ingest-from/setup-on-k8s/reference/dynakube-parameters
+FastAPI, requests, gRPC, PostgreSQL, Redis, and OneAgent instrumentation remain enabled where supported. Custom spans record exceptions and set error status. Proxy routes preserve downstream HTTP status; network timeouts become HTTP 503, not HTTP 200. The worker calls `raise_for_status()` for the audit callback.
 
-## OneAgent Workloads
+## ActiveMQ
 
-The following pods opt into OneAgent with
-`oneagent.dynatrace.com/inject: "true"`:
+The queue is `/queue/deployments.requested`, with logical destination `deployments.requested`. Producer and consumer spans use:
 
-- `bridge-ui`
-- `command-api`
-- `cargo-api`
-- `credits-api`
-- `maintenance-api`
+```text
+messaging.system=activemq
+messaging.destination.name=deployments.requested
+messaging.operation.name=send|process
+messaging.operation.type=send|process
+messaging.message.id=<release_id>
+```
 
-## OpenTelemetry Workloads
+Span names are `send deployments.requested` and `process deployments.requested`; kinds are `PRODUCER` and `CONSUMER`. W3C context is injected into and extracted from STOMP headers.
 
-The following pods opt into OTLP auto-config with
-`otlp-exporter-configuration.dynatrace.com/inject: "true"`:
+## FaaS and GenAI
 
-- `mission-api`
-- `drone-worker`
-- `orbit-ai`
-- `mock-llm`
+`webhook-function` emits one simulated provider per deployment (`FAAS_PROVIDER=aws|azure|gcp`) with `faas.name`, `faas.version`, `faas.trigger=pubsub`, `cloud.provider`, `cloud.region`, messaging attributes, and an invocation id. It is documented as a simulation.
 
-The application code does not set OTLP endpoints or tokens. Dynatrace Operator
-injects `DT_API_TOKEN`, signal-specific `OTEL_EXPORTER_OTLP_*` variables, and
-Kubernetes-enriched `OTEL_RESOURCE_ATTRIBUTES`.
+The incident path uses `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.response.model`, `gen_ai.usage.input_tokens`, and `gen_ai.usage.output_tokens`. Prompt and response bodies are never recorded. Duration histograms use seconds and unit `s`; metric dimensions remain low-cardinality and exclude release IDs and versions.
 
-## AI Signals
+## Custom metrics
 
-`orbit-ai` and `mock-llm` emit:
-
-- spans: `orbit.recommend_mission`, `llm.call`
-- attributes: `ai.model.name`, `ai.prompt.type`, `ai.response.status`,
-  `ai.tokens.input`, `ai.tokens.output`
-- metrics: `nebulatrace.orbit.tokens`, `nebulatrace.orbit.failures`
-
-The demo logs prompt category and trace context, not prompt bodies.
+The small domain metrics are `nebulatrace.releases.*`, `nebulatrace.release.*`, `nebulatrace.deployments.*`, `nebulatrace.deployment.duration`, `nebulatrace.runner.duration`, `nebulatrace.webhook.*`, `nebulatrace.incident_assistant.*`, and non-duplicate `nebulatrace.llm.*` metrics.

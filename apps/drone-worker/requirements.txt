@@ -1,7 +1,0 @@
-stomp.py==8.2.0
-psycopg[binary]==3.2.9
-requests==2.32.4
-opentelemetry-api==1.35.0
-opentelemetry-sdk==1.35.0
-opentelemetry-exporter-otlp==1.35.0
-opentelemetry-instrumentation-requests==0.56b0

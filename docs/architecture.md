@@ -1,41 +1,29 @@
 # Architecture
 
-NebulaTrace is a small starship operations app. It uses deliberately mixed
-languages so Dynatrace can show different instrumentation paths without adding
-extra architecture.
+NebulaTrace models a software-delivery platform with small services whose boundaries make trace stitching visible.
 
-```mermaid
-flowchart LR
-  User[Mission Commander] --> GW[Istio IngressGateway]
-  GW --> FE[bridge-ui]
-  FE --> API[command-api]
-  API --> CARGO[cargo-api]
-  API --> MISSION[mission-api]
-  API --> CREDITS[credits-api]
-  API --> ORBIT[orbit-ai]
-  CARGO --> PG[(PostgreSQL)]
-  MISSION --> PG
-  MISSION --> MQ[(ActiveMQ)]
-  CREDITS --> REDIS[(Redis)]
-  DRONE[drone-worker] --> MQ
-  DRONE --> PG
-  DRONE --> MAINT[maintenance-api]
-  ORBIT --> LLM[mock-llm]
+```text
+engineering-portal / load-generator / webhook-function
+                         |
+                         v
+                    platform-api
+                   /      |       \
+                  v       v        v
+          artifact-api  quota-api  incident-assistant -> mock-llm
+              |           |
+          PostgreSQL     Redis
+
+platform-api -> release-api -> PostgreSQL
+                    |
+                    v
+           ActiveMQ deployments.requested
+                    |
+                    v
+       deployment-worker -> runner-agent (gRPC) -> audit-api
 ```
 
-## Services
+The `nebulatrace` namespace contains application workloads and Istio sidecars. `nebulatrace-data` contains PostgreSQL, Redis, and ActiveMQ Classic without Istio injection. Dynatrace Operator supplies OneAgent injection and OTLP exporter configuration; application code does not hardcode ingest endpoints or tokens.
 
-| Service | Runtime | Role | Telemetry |
-|---|---|---|---|
-| `bridge-ui` | React + NGINX | Starship console | OneAgent optional |
-| `command-api` | Node.js | API facade | OneAgent |
-| `cargo-api` | Java Spring Boot | Cargo inventory and slow SQL | OneAgent |
-| `mission-api` | Python FastAPI | Mission creation and ActiveMQ publish | OpenTelemetry |
-| `credits-api` | Go | Fake credits authorization | OneAgent |
-| `drone-worker` | Python | Async job consumer | OpenTelemetry |
-| `maintenance-api` | Node.js | Repair status | OneAgent |
-| `orbit-ai` | Python FastAPI | AI mission recommendations | OpenTelemetry |
-| `mock-llm` | Python FastAPI | Local fake LLM | OpenTelemetry |
-PostgreSQL, ActiveMQ Classic, and Redis live in `nebulatrace-data`; ActiveMQ is
-OneAgent-injected for JVM/JMX-style broker visibility. App workloads live in
-`nebulatrace` with Istio injection enabled.
+`release-api` validates and persists a release, then publishes minimal JSON with W3C context in STOMP headers. `deployment-worker` extracts that context, calls `runner-agent.ExecuteRelease`, updates the release row, posts an audit callback, and only then acknowledges the ActiveMQ message. Any required failure is represented as a failing status and NACK.
+
+`artifact-api` is Java/Spring Boot and reads PostgreSQL. `quota-api` is Go and increments `quota:staging:deployments` in Redis, making the dependency observable. `webhook-function` is a one-provider-at-a-time FaaS telemetry simulation configured by `FAAS_PROVIDER`; it sends the same release payload as the portal. The incident assistant is an optional connected GenAI-style path to `mock-llm`.

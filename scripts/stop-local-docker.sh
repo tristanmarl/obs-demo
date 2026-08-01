@@ -2,16 +2,17 @@
 set -euo pipefail
 
 for container in \
-  nebulatrace-bridge-ui \
-  nebulatrace-command-api \
+  nebulatrace-engineering-portal \
+  nebulatrace-platform-api \
   nebulatrace-load-generator \
-  nebulatrace-cargo-api \
-  nebulatrace-mission-api \
-  nebulatrace-credits-api \
-  nebulatrace-maintenance-api \
-  nebulatrace-orbit-ai \
+  nebulatrace-artifact-api \
+  nebulatrace-release-api \
+  nebulatrace-quota-api \
+  nebulatrace-audit-api \
+  nebulatrace-incident-assistant \
   nebulatrace-mock-llm \
-  nebulatrace-drone-worker \
+  nebulatrace-deployment-worker \
+  nebulatrace-runner-agent \
   nebulatrace-postgres \
   nebulatrace-activemq \
   nebulatrace-redis

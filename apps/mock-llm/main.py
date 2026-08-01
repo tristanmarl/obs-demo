@@ -12,10 +12,10 @@ tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
 llm_calls = meter.create_counter("nebulatrace.llm.calls")
 llm_tokens = meter.create_counter("nebulatrace.llm.tokens")
-llm_latency = meter.create_histogram("nebulatrace.llm.latency_ms")
-hallucinations = meter.create_counter("nebulatrace.llm.hallucinations")
+llm_latency = meter.create_histogram("nebulatrace.llm.latency", unit="s")
 app = FastAPI(title="mock-llm")
 FastAPIInstrumentor.instrument_app(app)
+MODEL = "mock-delivery-advisor"
 
 
 class Completion(BaseModel):
@@ -28,21 +28,22 @@ def healthz():
 
 
 @app.post("/complete")
-def complete(request: Completion):
-    started = time.time()
-    with tracer.start_as_current_span("llm.call") as span:
-        span.set_attribute("ai.model.name", "mock-nebula-llm")
-        span.set_attribute("ai.prompt.type", "mission-recommendation")
-        if os.getenv("ENTROPY_MODE") == "ai-anomaly":
+def complete(_request: Completion):
+    started = time.monotonic()
+    with tracer.start_as_current_span("gen_ai.chat") as span:
+        span.set_attribute("gen_ai.operation.name", "chat")
+        span.set_attribute("gen_ai.provider.name", "mock")
+        span.set_attribute("gen_ai.request.model", MODEL)
+        if os.getenv("SCENARIO_MODE") == "ai-latency":
             time.sleep(2)
-            text = "Reboot the coffee synthesizer and fly directly into the shiny anomaly."
-            span.set_attribute("ai.response.status", "hallucinated")
-            hallucinations.add(1, {"ai.model.name": "mock-nebula-llm"})
+            text = "Review the release trace, queue depth, and quota dependency before rolling back."
         else:
-            text = "Route repair drones through Deck 7 and avoid the unstable wormhole."
-            span.set_attribute("ai.response.status", "ok")
+            text = "Check the release trace and compare database, queue, runner, and audit timings."
         token_count = len(text.split())
-        llm_calls.add(1, {"ai.model.name": "mock-nebula-llm"})
-        llm_tokens.add(token_count, {"ai.model.name": "mock-nebula-llm"})
-        llm_latency.record((time.time() - started) * 1000, {"ai.model.name": "mock-nebula-llm"})
-        return {"model": "mock-nebula-llm", "recommendation": text, "tokens": token_count}
+        span.set_attribute("gen_ai.response.model", MODEL)
+        span.set_attribute("gen_ai.usage.input_tokens", 10)
+        span.set_attribute("gen_ai.usage.output_tokens", token_count)
+        llm_calls.add(1, {"gen_ai.request.model": MODEL})
+        llm_tokens.add(token_count, {"gen_ai.request.model": MODEL})
+        llm_latency.record(time.monotonic() - started, {"gen_ai.request.model": MODEL})
+        return {"model": MODEL, "recommendation": text, "tokens": token_count}
