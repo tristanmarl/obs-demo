@@ -2,21 +2,27 @@
 
 NebulaTrace is a neutral distributed-systems workload. Its boundaries make HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, simulated FaaS, GenAI, and JVM memory signals visible without inventing a product or business story.
 
-```text
-control-ui / load-generator -> gateway-api
-aws-lambda-trigger ---------> gateway-api
-azure-functions-trigger ----> gateway-api
-google-cloud-function-trigger -> gateway-api
+```mermaid
+flowchart LR
+  control["control-ui"] --> gateway["gateway-api"]
+  load["load-generator"] --> gateway
+  aws["aws-lambda-trigger"] --> gateway
+  azure["azure-functions-trigger"] --> gateway
+  google["google-cloud-function-trigger"] --> gateway
 
-gateway-api -> catalog-api -> PostgreSQL
-gateway-api -> cache-api -> Redis
-gateway-api -> analysis-api -> mock-llm
+  gateway --> catalog["catalog-api"]
+  catalog --> postgres[("PostgreSQL")]
+  gateway --> cache["cache-api"]
+  cache --> redis[("Redis")]
+  gateway --> analysis["analysis-api"]
+  analysis --> llm["mock-llm"]
 
-gateway-api -> job-api -> PostgreSQL
-                       -> ActiveMQ jobs.requested
-                       -> job-worker
-                       -> grpc-service
-                       -> result-api
+  gateway --> job["job-api"]
+  job --> postgres
+  job --> broker[("ActiveMQ\njobs.requested")]
+  broker --> worker["job-worker"]
+  worker -->|"ValidateJob / ExecuteJob / VerifyJob"| grpc["grpc-service"]
+  worker --> result["result-api"]
 ```
 
 `job-api` validates `{name, workUnits}`, persists a UUID-derived job, and publishes minimal JSON with W3C context in STOMP headers. `job-worker` explicitly receives a frame, creates a `receive jobs.requested` span, then creates a separate `process jobs.requested` span. It calls `ValidateJob`, `ExecuteJob`, and `VerifyJob`, updates PostgreSQL, calls `result-api`, and ACKs only after the required work succeeds.
