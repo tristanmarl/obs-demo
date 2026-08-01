@@ -26,7 +26,7 @@ verify:
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/quota-api golang:1.23-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -m compileall -q /workspace/apps
 	@docker build -f apps/artifact-api/Dockerfile apps/artifact-api
-	@./scripts/render-install-yaml.sh --no-env
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/nebulatrace.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/nebulatrace.yaml >/dev/null
 	@test -z "$$(rg -n '\$$\{[^}]+\}' deploy/dist/nebulatrace.yaml)"
 	@$(MAKE) build-images
 
