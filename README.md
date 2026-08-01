@@ -13,6 +13,49 @@ platform-api -> quota-api -> Redis
 platform-api -> incident-assistant -> mock-llm
 ```
 
+## Dashboard
+
+The engineering portal puts release execution, deterministic incident scenarios, and demo telemetry context in one view.
+
+![NebulaTrace engineering portal dashboard](docs/images/engineering-portal-dashboard.jpg)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    portal[engineering-portal]
+    load[load-generator]
+    webhook[webhook-function]
+    platform[platform-api]
+    release[release-api]
+    postgres[(PostgreSQL)]
+    queue[("ActiveMQ<br/>deployments.requested")]
+    worker[deployment-worker]
+    runner["runner-agent<br/>gRPC"]
+    audit[audit-api]
+    artifact[artifact-api]
+    quota[quota-api]
+    redis[(Redis)]
+    assistant[incident-assistant]
+    llm[mock-llm]
+
+    portal --> platform
+    load --> platform
+    webhook --> platform
+    platform --> release
+    release --> postgres
+    release --> queue
+    queue --> worker
+    worker --> runner
+    runner --> audit
+    platform --> artifact
+    artifact --> postgres
+    platform --> quota
+    quota --> redis
+    platform --> assistant
+    assistant --> llm
+```
+
 ## Run it
 
 Prerequisites: Docker, `kubectl`, `helm`, `istioctl`, and `envsubst`. Builds and tests run in containers; local Node, Go, Java, and Python packages are not required.
