@@ -123,7 +123,8 @@ function App() {
       </header>
 
       <section className="section">
-        <h2>Generate telemetry</h2>
+        <h2>Manual requests (optional)</h2>
+        <p>Background traffic runs automatically via <code>load-generator</code>. Use these controls for one immediate trace or a custom job.</p>
         <form className="job-form" onSubmit={submitJob}>
           <label htmlFor="job-name">Job name<input id="job-name" value={job.name} onChange={event => setJob({ ...job, name: event.target.value })} /></label>
           <label htmlFor="work-units">Work units<input id="work-units" type="number" min="1" max="100" value={job.workUnits} onChange={event => setJob({ ...job, workUnits: Number(event.target.value) })} /></label>

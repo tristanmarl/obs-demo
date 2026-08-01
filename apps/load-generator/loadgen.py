@@ -10,9 +10,9 @@ DELAY_MS = int(os.getenv("LOADGEN_DELAY_MS", "750"))
 BURST = max(1, int(os.getenv("LOADGEN_BURST", "1")))
 TIMEOUT = float(os.getenv("LOADGEN_TIMEOUT_SECONDS", "5"))
 try:
-    ERROR_RATE = min(0.25, max(0.0, float(os.getenv("LOADGEN_ERROR_RATE", "0.02"))))
+    ERROR_RATE = min(0.25, max(0.0, float(os.getenv("LOADGEN_ERROR_RATE", "0.05"))))
 except ValueError:
-    ERROR_RATE = 0.02
+    ERROR_RATE = 0.05
 
 COMMANDS = [
     ("catalog-list", "GET", "/api/catalog", None, 3),
@@ -23,6 +23,12 @@ COMMANDS = [
     ("job-list", "GET", "/api/jobs", None, 2),
     ("job-detail", "GET", "/api/jobs", None, 2),
     ("analysis", "GET", "/api/analysis", None, 1),
+]
+
+FAILURE_COMMANDS = [
+    ("cache-error", "GET", "/api/cache?force_error=true", None),
+    ("catalog-miss", "GET", "/api/catalog/missing-item", None),
+    ("job-validation", "POST", "/api/jobs", {"name": "invalid job", "workUnits": 10}),
 ]
 
 
@@ -52,7 +58,8 @@ def main():
     while True:
         for _ in range(BURST):
             if random.random() < ERROR_RATE:
-                call("intentional-error", "GET", "/api/cache?force_error=true", None)
+                name, method, path, body = random.choice(FAILURE_COMMANDS)
+                call(name, method, path, body)
                 continue
             name, method, path, body, _weight = random.choice(weighted)
             if name == "job-detail":

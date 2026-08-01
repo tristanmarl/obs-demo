@@ -47,7 +47,7 @@ make reset
 ./scripts/reset-demo.sh
 ```
 
-Normal load includes a configurable low error rate (`LOADGEN_ERROR_RATE`, default `0.02`) so stable traffic still produces useful failure telemetry.
+Normal load includes a configurable background error rate (`LOADGEN_ERROR_RATE`, default `0.05`). Failures rotate through cache 500s, missing catalog items, and invalid jobs; targeted scenarios remain available for dependency and infrastructure failures.
 
 ## Configuration
 
