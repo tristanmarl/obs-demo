@@ -115,7 +115,7 @@ metadata:
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector: {app: control-ui}
+  selector: {matchLabels: {app: control-ui}}
   template:
     metadata:
       labels: {app: control-ui}
@@ -189,6 +189,9 @@ spec:
           image: ${IMAGE_REGISTRY}/catalog-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           env:
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres.nebulatrace-data:5432/nebulatrace"}
+            - {name: SPRING_DATASOURCE_USERNAME, value: nebulatrace}
+            - {name: SPRING_DATASOURCE_PASSWORD, value: nebulatrace}
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
           resources:
