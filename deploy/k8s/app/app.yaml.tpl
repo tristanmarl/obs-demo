@@ -9,16 +9,16 @@ data:
   ACTIVEMQ_STOMP_PORT: "61613"
   ACTIVEMQ_USER: admin
   ACTIVEMQ_PASSWORD: admin
-  DEPLOYMENT_QUEUE: /queue/deployments.requested
+  JOB_QUEUE: /queue/jobs.requested
   REDIS_URL: redis://redis.nebulatrace-data:6379
-  ARTIFACT_URL: http://artifact-api:8080
-  QUOTA_URL: http://quota-api:8080
-  RELEASE_URL: http://release-api:8080
-  INCIDENT_ASSISTANT_URL: http://incident-assistant:8080
+  CATALOG_URL: http://catalog-api:8080
+  CACHE_URL: http://cache-api:8080
+  JOB_URL: http://job-api:8080
+  ANALYSIS_URL: http://analysis-api:8080
   LLM_URL: http://mock-llm:8080
-  AUDIT_URL: http://audit-api:8080
-  RUNNER_ADDRESS: runner-agent:50051
-  PLATFORM_URL: http://platform-api:8080
+  RESULT_URL: http://result-api:8080
+  GRPC_ADDRESS: grpc-service:50051
+  GATEWAY_URL: http://gateway-api:8080
   SERVICE_VERSION: "${IMAGE_TAG}"
   OTEL_RESOURCE_ATTRIBUTES: "${OTEL_RESOURCE_ATTRIBUTES}"
   DT_CUSTOM_PROP: "${DT_CUSTOM_PROP}"
@@ -26,64 +26,63 @@ data:
   LOADGEN_DELAY_MS: "${LOADGEN_DELAY_MS}"
   LOADGEN_BURST: "${LOADGEN_BURST}"
   LOADGEN_ERROR_RATE: "${LOADGEN_ERROR_RATE}"
-  WEBHOOK_DELAY_MS: "${WEBHOOK_DELAY_MS}"
-  FAAS_PROVIDER: "${FAAS_PROVIDER}"
   FAAS_VERSION: "${FAAS_VERSION}"
   MEMORY_PRESSURE_MB: "${MEMORY_PRESSURE_MB}"
   MEMORY_SURVIVOR_BATCHES: "${MEMORY_SURVIVOR_BATCHES}"
-  QUOTA_LIMIT: "${QUOTA_LIMIT}"
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: platform-api
+  name: gateway-api
   namespace: nebulatrace
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: platform-api-controls
+  name: gateway-api-controls
   namespace: nebulatrace
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     resourceNames:
-      - engineering-portal
-      - platform-api
-      - artifact-api
-      - release-api
-      - quota-api
-      - deployment-worker
-      - audit-api
-      - incident-assistant
+      - control-ui
+      - gateway-api
+      - catalog-api
+      - job-api
+      - cache-api
+      - job-worker
+      - result-api
+      - analysis-api
       - mock-llm
-      - webhook-function
-      - runner-agent
+      - aws-lambda-trigger
+      - azure-functions-trigger
+      - google-cloud-function-trigger
+      - grpc-service
       - load-generator
     verbs: ["get", "patch"]
   - apiGroups: ["networking.istio.io"]
     resources: ["virtualservices"]
-    resourceNames: ["quota-api"]
+    resourceNames: ["cache-api"]
     verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: platform-api-controls
+  name: gateway-api-controls
   namespace: nebulatrace
 subjects:
   - kind: ServiceAccount
-    name: platform-api
+    name: gateway-api
     namespace: nebulatrace
 roleRef:
   kind: Role
-  name: platform-api-controls
+  name: gateway-api-controls
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: platform-api-data-controls
+  name: gateway-api-data-controls
   namespace: nebulatrace-data
 rules:
   - apiGroups: ["apps"]
@@ -98,104 +97,98 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: platform-api-data-controls
+  name: gateway-api-data-controls
   namespace: nebulatrace-data
 subjects:
   - kind: ServiceAccount
-    name: platform-api
+    name: gateway-api
     namespace: nebulatrace
 roleRef:
   kind: Role
-  name: platform-api-data-controls
+  name: gateway-api-data-controls
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: engineering-portal
+  name: control-ui
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: engineering-portal}
+  selector: {app: control-ui}
   template:
     metadata:
-      labels: {app: engineering-portal}
+      labels: {app: control-ui}
       annotations:
         oneagent.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: engineering-portal
+        metadata.dynatrace.com/service: control-ui
     spec:
       containers:
-        - name: engineering-portal
-          image: ${IMAGE_REGISTRY}/engineering-portal:${IMAGE_TAG}
+        - name: control-ui
+          image: ${IMAGE_REGISTRY}/control-ui:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: engineering-portal
+  name: control-ui
   namespace: nebulatrace
 spec:
-  selector: {app: engineering-portal}
+  selector: {app: control-ui}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: platform-api
+  name: gateway-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: platform-api}
+  selector: {matchLabels: {app: gateway-api}}
   template:
     metadata:
-      labels: {app: platform-api}
+      labels: {app: gateway-api}
       annotations:
         oneagent.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: platform-api
+        metadata.dynatrace.com/service: gateway-api
     spec:
-      serviceAccountName: platform-api
+      serviceAccountName: gateway-api
       containers:
-        - name: platform-api
-          image: ${IMAGE_REGISTRY}/platform-api:${IMAGE_TAG}
+        - name: gateway-api
+          image: ${IMAGE_REGISTRY}/gateway-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: platform-api
+  name: gateway-api
   namespace: nebulatrace
 spec:
-  selector: {app: platform-api}
+  selector: {app: gateway-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: artifact-api
+  name: catalog-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: artifact-api}
+  selector: {matchLabels: {app: catalog-api}}
   template:
     metadata:
-      labels: {app: artifact-api}
+      labels: {app: catalog-api}
       annotations:
         oneagent.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: artifact-api
+        metadata.dynatrace.com/service: catalog-api
     spec:
       containers:
-        - name: artifact-api
-          image: ${IMAGE_REGISTRY}/artifact-api:${IMAGE_TAG}
+        - name: catalog-api
+          image: ${IMAGE_REGISTRY}/catalog-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           env:
-            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres.nebulatrace-data:5432/nebulatrace"}
-            - {name: SPRING_DATASOURCE_USERNAME, value: nebulatrace}
-            - {name: SPRING_DATASOURCE_PASSWORD, value: nebulatrace}
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
           resources:
@@ -205,62 +198,60 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: artifact-api
+  name: catalog-api
   namespace: nebulatrace
 spec:
-  selector: {app: artifact-api}
+  selector: {app: catalog-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: release-api
+  name: job-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: release-api}
+  selector: {matchLabels: {app: job-api}}
   template:
     metadata:
-      labels: {app: release-api}
+      labels: {app: job-api}
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: release-api
+        metadata.dynatrace.com/service: job-api
     spec:
       containers:
-        - name: release-api
-          image: ${IMAGE_REGISTRY}/release-api:${IMAGE_TAG}
+        - name: job-api
+          image: ${IMAGE_REGISTRY}/job-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: release-api
+  name: job-api
   namespace: nebulatrace
 spec:
-  selector: {app: release-api}
+  selector: {app: job-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: quota-api
+  name: cache-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: quota-api, version: stable}
+  selector: {matchLabels: {app: cache-api, version: stable}}
   template:
     metadata:
-      labels: {app: quota-api, version: stable}
+      labels: {app: cache-api, version: stable}
       annotations:
         oneagent.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: quota-api
+        metadata.dynatrace.com/service: cache-api
     spec:
       containers:
-        - name: quota-api
-          image: ${IMAGE_REGISTRY}/quota-api:${IMAGE_TAG}
+        - name: cache-api
+          image: ${IMAGE_REGISTRY}/cache-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           env:
             - {name: SCENARIO_MODE, value: stable}
@@ -269,31 +260,30 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: quota-api
+  name: cache-api
   namespace: nebulatrace
 spec:
-  selector: {app: quota-api, version: stable}
+  selector: {app: cache-api, version: stable}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deployment-worker
+  name: job-worker
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: deployment-worker}
+  selector: {matchLabels: {app: job-worker}}
   template:
     metadata:
-      labels: {app: deployment-worker}
+      labels: {app: job-worker}
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: deployment-worker
+        metadata.dynatrace.com/service: job-worker
     spec:
       containers:
-        - name: deployment-worker
-          image: ${IMAGE_REGISTRY}/deployment-worker:${IMAGE_TAG}
+        - name: job-worker
+          image: ${IMAGE_REGISTRY}/job-worker:${IMAGE_TAG}
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
@@ -301,63 +291,61 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: audit-api
+  name: result-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: audit-api}
+  selector: {matchLabels: {app: result-api}}
   template:
     metadata:
-      labels: {app: audit-api}
+      labels: {app: result-api}
       annotations:
         oneagent.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: audit-api
+        metadata.dynatrace.com/service: result-api
     spec:
       containers:
-        - name: audit-api
-          image: ${IMAGE_REGISTRY}/audit-api:${IMAGE_TAG}
+        - name: result-api
+          image: ${IMAGE_REGISTRY}/result-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: audit-api
+  name: result-api
   namespace: nebulatrace
 spec:
-  selector: {app: audit-api}
+  selector: {app: result-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: incident-assistant
+  name: analysis-api
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: incident-assistant}
+  selector: {matchLabels: {app: analysis-api}}
   template:
     metadata:
-      labels: {app: incident-assistant}
+      labels: {app: analysis-api}
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: incident-assistant
+        metadata.dynatrace.com/service: analysis-api
     spec:
       containers:
-        - name: incident-assistant
-          image: ${IMAGE_REGISTRY}/incident-assistant:${IMAGE_TAG}
+        - name: analysis-api
+          image: ${IMAGE_REGISTRY}/analysis-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: incident-assistant
+  name: analysis-api
   namespace: nebulatrace
 spec:
-  selector: {app: incident-assistant}
+  selector: {app: analysis-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
 ---
 apiVersion: apps/v1
@@ -367,8 +355,7 @@ metadata:
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: mock-llm}
+  selector: {matchLabels: {app: mock-llm}}
   template:
     metadata:
       labels: {app: mock-llm}
@@ -396,44 +383,100 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: webhook-function
+  name: aws-lambda-trigger
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: webhook-function}
+  selector: {matchLabels: {app: aws-lambda-trigger}}
   template:
     metadata:
-      labels: {app: webhook-function}
+      labels: {app: aws-lambda-trigger}
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: webhook-function
+        metadata.dynatrace.com/service: aws-lambda-trigger
     spec:
       containers:
-        - name: webhook-function
-          image: ${IMAGE_REGISTRY}/webhook-function:${IMAGE_TAG}
+        - name: aws-lambda-trigger
+          image: ${IMAGE_REGISTRY}/function-trigger:${IMAGE_TAG}
+          env:
+            - {name: SERVICE_NAME, value: aws-lambda-trigger}
+            - {name: FAAS_FUNCTION_NAME, value: aws-lambda-trigger}
+            - {name: FAAS_PROVIDER, value: aws}
+            - {name: TRIGGER_DELAY_MS, value: "6500"}
+            - {name: CLOUD_REGION, value: us-east-1}
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: runner-agent
+  name: azure-functions-trigger
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: runner-agent}
+  selector: {matchLabels: {app: azure-functions-trigger}}
   template:
     metadata:
-      labels: {app: runner-agent}
+      labels: {app: azure-functions-trigger}
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
-        metadata.dynatrace.com/service: runner-agent
+        metadata.dynatrace.com/service: azure-functions-trigger
     spec:
       containers:
-        - name: runner-agent
-          image: ${IMAGE_REGISTRY}/runner-agent:${IMAGE_TAG}
-          ports: [{containerPort: 50051}]
+        - name: azure-functions-trigger
+          image: ${IMAGE_REGISTRY}/function-trigger:${IMAGE_TAG}
+          env:
+            - {name: SERVICE_NAME, value: azure-functions-trigger}
+            - {name: FAAS_FUNCTION_NAME, value: azure-functions-trigger}
+            - {name: FAAS_PROVIDER, value: azure}
+            - {name: TRIGGER_DELAY_MS, value: "7500"}
+            - {name: CLOUD_REGION, value: westeurope}
+          envFrom: [{configMapRef: {name: nebulatrace-config}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: google-cloud-function-trigger
+  namespace: nebulatrace
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: google-cloud-function-trigger}}
+  template:
+    metadata:
+      labels: {app: google-cloud-function-trigger}
+      annotations:
+        otlp-exporter-configuration.dynatrace.com/inject: "true"
+        metadata.dynatrace.com/service: google-cloud-function-trigger
+    spec:
+      containers:
+        - name: google-cloud-function-trigger
+          image: ${IMAGE_REGISTRY}/function-trigger:${IMAGE_TAG}
+          env:
+            - {name: SERVICE_NAME, value: google-cloud-function-trigger}
+            - {name: FAAS_FUNCTION_NAME, value: google-cloud-function-trigger}
+            - {name: FAAS_PROVIDER, value: gcp}
+            - {name: TRIGGER_DELAY_MS, value: "8500"}
+            - {name: CLOUD_REGION, value: europe-west3}
+          envFrom: [{configMapRef: {name: nebulatrace-config}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpc-service
+  namespace: nebulatrace
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: grpc-service}}
+  template:
+    metadata:
+      labels: {app: grpc-service}
+      annotations:
+        otlp-exporter-configuration.dynatrace.com/inject: "true"
+        metadata.dynatrace.com/service: grpc-service
+    spec:
+      containers:
+        - name: grpc-service
+          image: ${IMAGE_REGISTRY}/grpc-service:${IMAGE_TAG}
+          ports: [{name: grpc, containerPort: 50051}]
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
@@ -441,10 +484,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: runner-agent
+  name: grpc-service
   namespace: nebulatrace
 spec:
-  selector: {app: runner-agent}
+  selector: {app: grpc-service}
   ports: [{name: grpc, port: 50051, targetPort: 50051}]
 ---
 apiVersion: apps/v1
@@ -454,8 +497,7 @@ metadata:
   namespace: nebulatrace
 spec:
   replicas: 1
-  selector:
-    matchLabels: {app: load-generator}
+  selector: {matchLabels: {app: load-generator}}
   template:
     metadata:
       labels: {app: load-generator}

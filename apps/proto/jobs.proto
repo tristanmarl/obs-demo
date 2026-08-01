@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package nebulatrace.jobs;
+
+service JobExecutor {
+  rpc ValidateJob(JobRequest) returns (ValidateJobReply);
+  rpc ExecuteJob(JobRequest) returns (ExecuteJobReply);
+  rpc VerifyJob(VerifyJobRequest) returns (VerifyJobReply);
+}
+
+message JobRequest {
+  string job_id = 1;
+  string name = 2;
+  int32 work_units = 3;
+}
+
+message ValidateJobReply {
+  bool accepted = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message ExecuteJobReply {
+  bool healthy = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message VerifyJobRequest {
+  string job_id = 1;
+}
+
+message VerifyJobReply {
+  bool healthy = 1;
+  string status = 2;
+  string message = 3;
+}

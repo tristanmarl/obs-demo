@@ -2,20 +2,11 @@
 set -euo pipefail
 
 for container in \
-  nebulatrace-engineering-portal \
-  nebulatrace-platform-api \
-  nebulatrace-load-generator \
-  nebulatrace-artifact-api \
-  nebulatrace-release-api \
-  nebulatrace-quota-api \
-  nebulatrace-audit-api \
-  nebulatrace-incident-assistant \
-  nebulatrace-mock-llm \
-  nebulatrace-deployment-worker \
-  nebulatrace-runner-agent \
-  nebulatrace-postgres \
-  nebulatrace-activemq \
-  nebulatrace-redis
+  nebulatrace-control-ui nebulatrace-gateway-api nebulatrace-load-generator \
+  nebulatrace-catalog-api nebulatrace-job-api nebulatrace-cache-api nebulatrace-result-api \
+  nebulatrace-analysis-api nebulatrace-mock-llm nebulatrace-job-worker nebulatrace-grpc-service \
+  nebulatrace-aws-lambda-trigger nebulatrace-azure-functions-trigger nebulatrace-google-cloud-function-trigger \
+  nebulatrace-postgres nebulatrace-activemq nebulatrace-redis
 do
   docker rm -f "$container" >/dev/null 2>&1 || true
 done

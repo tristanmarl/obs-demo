@@ -1,29 +1,26 @@
 # Architecture
 
-NebulaTrace models a software-delivery platform with small services whose boundaries make trace stitching visible.
+NebulaTrace is a neutral distributed-systems workload. Its boundaries make HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, simulated FaaS, GenAI, and JVM memory signals visible without inventing a product or business story.
 
 ```text
-engineering-portal / load-generator / webhook-function
-                         |
-                         v
-                    platform-api
-                   /      |       \
-                  v       v        v
-          artifact-api  quota-api  incident-assistant -> mock-llm
-              |           |
-          PostgreSQL     Redis
+control-ui / load-generator -> gateway-api
+aws-lambda-trigger ---------> gateway-api
+azure-functions-trigger ----> gateway-api
+google-cloud-function-trigger -> gateway-api
 
-platform-api -> release-api -> PostgreSQL
-                    |
-                    v
-           ActiveMQ deployments.requested
-                    |
-                    v
-       deployment-worker -> runner-agent (gRPC) -> audit-api
+gateway-api -> catalog-api -> PostgreSQL
+gateway-api -> cache-api -> Redis
+gateway-api -> analysis-api -> mock-llm
+
+gateway-api -> job-api -> PostgreSQL
+                       -> ActiveMQ jobs.requested
+                       -> job-worker
+                       -> grpc-service
+                       -> result-api
 ```
 
+`job-api` validates `{name, workUnits}`, persists a UUID-derived job, and publishes minimal JSON with W3C context in STOMP headers. `job-worker` explicitly receives a frame, creates a `receive jobs.requested` span, then creates a separate `process jobs.requested` span. It calls `ValidateJob`, `ExecuteJob`, and `VerifyJob`, updates PostgreSQL, calls `result-api`, and ACKs only after the required work succeeds.
+
+`catalog-api` reads PostgreSQL list/detail rows and can add database latency or bounded allocation pressure. `cache-api` reads and increments a real Redis key. The analysis path is optional and calls the local mock model without recording prompt or response bodies. The three provider trigger deployments share one image and submit ordinary jobs through the gateway.
+
 The `nebulatrace` namespace contains application workloads and Istio sidecars. `nebulatrace-data` contains PostgreSQL, Redis, and ActiveMQ Classic without Istio injection. Dynatrace Operator supplies OneAgent injection and OTLP exporter configuration; application code does not hardcode ingest endpoints or tokens.
-
-`release-api` validates and persists a release, then publishes minimal JSON with W3C context in STOMP headers. `deployment-worker` extracts that context, calls `runner-agent.ExecuteRelease`, updates the release row, posts an audit callback, and only then acknowledges the ActiveMQ message. Any required failure is represented as a failing status and NACK.
-
-`artifact-api` is Java/Spring Boot and reads PostgreSQL. `quota-api` is Go and increments `quota:staging:deployments` in Redis, making the dependency observable. `webhook-function` is a one-provider-at-a-time FaaS telemetry simulation configured by `FAAS_PROVIDER`; it sends the same release payload as the portal. The incident assistant is an optional connected GenAI-style path to `mock-llm`.

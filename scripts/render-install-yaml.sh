@@ -31,14 +31,11 @@ export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environm
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
-export WEBHOOK_DELAY_MS="${WEBHOOK_DELAY_MS:-5000}"
-export FAAS_PROVIDER="${FAAS_PROVIDER:-aws}"
 export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
 export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
 export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
 export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
 export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
-export QUOTA_LIMIT="${QUOTA_LIMIT:-10}"
 
 if ! command -v envsubst >/dev/null 2>&1; then
   echo "envsubst is required. Install gettext-base."

@@ -35,7 +35,7 @@ current_from_env() {
 }
 
 current_from_cluster() {
-  kubectl -n "$APP_NAMESPACE" get deploy platform-api \
+  kubectl -n "$APP_NAMESPACE" get deploy gateway-api \
     -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="OTEL_RESOURCE_ATTRIBUTES")].value}' \
     2>/dev/null || true
 }
@@ -70,7 +70,7 @@ show_current() {
   echo "From .env:"
   current_from_env || true
   echo
-  echo "From cluster platform-api:"
+  echo "From cluster gateway-api:"
   current_from_cluster || true
   echo
 }
@@ -119,7 +119,7 @@ echo
 
 update_env_file "$new_attrs"
 
-for deployment in engineering-portal platform-api artifact-api release-api quota-api deployment-worker audit-api incident-assistant mock-llm webhook-function runner-agent load-generator; do
+for deployment in control-ui gateway-api catalog-api job-api cache-api job-worker result-api analysis-api mock-llm aws-lambda-trigger azure-functions-trigger google-cloud-function-trigger grpc-service load-generator; do
   kubectl -n "$APP_NAMESPACE" set env "deployment/$deployment" "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
 done
 for deployment in redis; do

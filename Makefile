@@ -5,8 +5,8 @@ KUBECTL ?= kubectl
 IMAGE_REGISTRY ?= nebulatrace
 IMAGE_TAG ?= dev
 
-SERVICES := engineering-portal platform-api artifact-api quota-api audit-api load-generator
-SHARED_CTX_SERVICES := release-api deployment-worker webhook-function incident-assistant mock-llm runner-agent
+SERVICES := control-ui gateway-api catalog-api cache-api result-api load-generator
+SHARED_CTX_SERVICES := job-api job-worker function-trigger analysis-api mock-llm grpc-service
 ALL_SERVICES := $(SERVICES) $(SHARED_CTX_SERVICES)
 
 .PHONY: build-images build test verify run-local stop-local push-images publish k3s-load-images k3s-deploy install-istio install-dynatrace deploy app-url status restart start stop set-owner reset
@@ -17,15 +17,14 @@ build-images:
 
 build: build-images
 
-test: verify
-
 verify:
 	@bash -n setup.sh scripts/*.sh
-	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/platform-api --ignore-scripts && npm test --prefix apps/platform-api'
-	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/engineering-portal --ignore-scripts && npm run build --prefix apps/engineering-portal'
-	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/quota-api golang:1.23-alpine go test ./
+	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/gateway-api --ignore-scripts && npm test --prefix apps/gateway-api'
+	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/control-ui --ignore-scripts && npm run build --prefix apps/control-ui'
+	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-api golang:1.23-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -m compileall -q /workspace/apps
-	@docker build -f apps/artifact-api/Dockerfile apps/artifact-api
+	@docker build -f apps/catalog-api/Dockerfile apps/catalog-api
+	@docker build -f apps/grpc-service/Dockerfile apps
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/nebulatrace.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/nebulatrace.yaml >/dev/null
 	@test -z "$$(rg -n '\$$\{[^}]+\}' deploy/dist/nebulatrace.yaml)"
 	@$(MAKE) build-images

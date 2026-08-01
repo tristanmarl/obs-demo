@@ -1,0 +1,13 @@
+{
+  "name": "gateway-api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test resource-attrs.test.js"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "@kubernetes/client-node": "^0.22.0"
+  }
+}

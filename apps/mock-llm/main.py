@@ -15,7 +15,7 @@ llm_tokens = meter.create_counter("nebulatrace.llm.tokens")
 llm_latency = meter.create_histogram("nebulatrace.llm.latency", unit="s")
 app = FastAPI(title="mock-llm")
 FastAPIInstrumentor.instrument_app(app)
-MODEL = "mock-delivery-advisor"
+MODEL = "mock-service-analyzer"
 
 
 class Completion(BaseModel):
@@ -36,9 +36,7 @@ def complete(_request: Completion):
         span.set_attribute("gen_ai.request.model", MODEL)
         if os.getenv("SCENARIO_MODE") == "ai-latency":
             time.sleep(2)
-            text = "Review the release trace, queue depth, and quota dependency before rolling back."
-        else:
-            text = "Check the release trace and compare database, queue, runner, and audit timings."
+        text = "Inspect the failing dependency, queue delay, and downstream status before changing configuration."
         token_count = len(text.split())
         span.set_attribute("gen_ai.response.model", MODEL)
         span.set_attribute("gen_ai.usage.input_tokens", 10)
@@ -46,4 +44,4 @@ def complete(_request: Completion):
         llm_calls.add(1, {"gen_ai.request.model": MODEL})
         llm_tokens.add(token_count, {"gen_ai.request.model": MODEL})
         llm_latency.record(time.monotonic() - started, {"gen_ai.request.model": MODEL})
-        return {"model": MODEL, "recommendation": text, "tokens": token_count}
+        return {"model": MODEL, "analysis": text, "tokens": token_count}

@@ -17,7 +17,7 @@ spec:
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
-  name: engineering-portal
+  name: control-ui
   namespace: nebulatrace
 spec:
   hosts:
@@ -30,22 +30,22 @@ spec:
             prefix: /api
       route:
         - destination:
-            host: platform-api.nebulatrace.svc.cluster.local
+            host: gateway-api.nebulatrace.svc.cluster.local
             port:
               number: 8080
     - route:
         - destination:
-            host: engineering-portal.nebulatrace.svc.cluster.local
+            host: control-ui.nebulatrace.svc.cluster.local
             port:
               number: 8080
 ---
 apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
-  name: quota-api
+  name: cache-api
   namespace: nebulatrace
 spec:
-  host: quota-api.nebulatrace.svc.cluster.local
+  host: cache-api.nebulatrace.svc.cluster.local
   subsets:
     - name: stable
       labels:
@@ -57,15 +57,15 @@ spec:
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
-  name: quota-api
+  name: cache-api
   namespace: nebulatrace
 spec:
   hosts:
-    - quota-api.nebulatrace.svc.cluster.local
+    - cache-api.nebulatrace.svc.cluster.local
   http:
     - route:
         - destination:
-            host: quota-api.nebulatrace.svc.cluster.local
+            host: cache-api.nebulatrace.svc.cluster.local
             subset: stable
             port:
               number: 8080

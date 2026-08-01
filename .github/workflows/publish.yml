@@ -21,30 +21,30 @@ jobs:
       matrix:
         include:
           # Services with their own build context (apps/<service>)
-          - service: engineering-portal
+          - service: control-ui
             shared_ctx: false
-          - service: platform-api
+          - service: gateway-api
             shared_ctx: false
-          - service: artifact-api
+          - service: catalog-api
             shared_ctx: false
-          - service: quota-api
+          - service: cache-api
             shared_ctx: false
-          - service: audit-api
+          - service: result-api
             shared_ctx: false
           - service: load-generator
             shared_ctx: false
           # Services that need the shared apps/ context (Dockerfile at apps/<service>/Dockerfile, context at apps/)
-          - service: deployment-worker
+          - service: job-worker
             shared_ctx: true
-          - service: webhook-function
+          - service: function-trigger
             shared_ctx: true
-          - service: incident-assistant
+          - service: analysis-api
             shared_ctx: true
-          - service: release-api
+          - service: job-api
             shared_ctx: true
           - service: mock-llm
             shared_ctx: true
-          - service: runner-agent
+          - service: grpc-service
             shared_ctx: true
 
     steps:

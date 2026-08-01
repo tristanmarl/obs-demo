@@ -5,21 +5,21 @@ metadata:
   namespace: nebulatrace-data
 data:
   001-schema.sql: |
-    create table if not exists artifacts (
-      sku text primary key,
-      name text not null,
-      stock integer not null
-    );
-    create table if not exists releases (
+    create table if not exists catalog_items (
       id text primary key,
-      service text not null,
-      version text not null,
-      environment text not null,
-      status text not null,
-      created_at timestamptz not null default now()
+      name text not null,
+      value integer not null
     );
-    insert into artifacts(sku, name, stock) values
-      ('checkout-service', 'Checkout service artifact', 12),
-      ('payments-service', 'Payments service artifact', 8),
-      ('customer-portal', 'Customer portal artifact', 24)
-    on conflict (sku) do nothing;
+    create table if not exists jobs (
+      id text primary key,
+      name text not null,
+      work_units integer not null,
+      status text not null,
+      created_at timestamptz not null default now(),
+      completed_at timestamptz
+    );
+    insert into catalog_items(id, name, value) values
+      ('item-a', 'Item A', 10),
+      ('item-b', 'Item B', 20),
+      ('item-c', 'Item C', 30)
+    on conflict (id) do nothing;
