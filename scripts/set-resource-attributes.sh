@@ -119,7 +119,7 @@ echo
 
 update_env_file "$new_attrs"
 
-for deployment in control-ui gateway-api catalog-api job-api cache-api job-worker result-api analysis-api mock-llm aws-lambda-trigger azure-functions-trigger google-cloud-function-trigger grpc-service load-generator; do
+for deployment in control-ui gateway-api catalog-api job-api cache-api job-worker result-api analysis-api mock-llm aws-lambda-trigger azure-functions-trigger google-cloud-function-trigger grpc-service load-generator cache-exporter queue-exporter; do
   kubectl -n "$APP_NAMESPACE" set env "deployment/$deployment" "OTEL_RESOURCE_ATTRIBUTES=$new_attrs"
 done
 for deployment in redis; do

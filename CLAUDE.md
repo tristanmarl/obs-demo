@@ -26,7 +26,11 @@ gateway-api -> cache-api -> Redis
 gateway-api -> analysis-api -> mock-llm
 gateway-api -> job-api -> PostgreSQL -> ActiveMQ jobs.requested
 job-worker -> grpc-service (ValidateJob, ExecuteJob, VerifyJob) -> result-api
+cache-exporter (Go, OneAgent)  -- polls Redis, exposes /metrics (Prometheus scrape, variant=oneagent)
+queue-exporter (Python, OTLP)  -- polls PostgreSQL, exposes /metrics (Prometheus scrape, variant=otlp)
 ```
+
+Both exporters are scraped by ActiveGate via Istio's merged endpoint (`15020/stats/prometheus`). Prometheus names use underscores (`nebulatrace_*`); OTel names use dots (`nebulatrace.*`). Run `make enable-prometheus-scraping` for prerequisites.
 
 Workload names and OTel `service.name` values are identical. `apps/otel_setup.py` adds `service.namespace=nebulatrace`, `deployment.environment.name=demo`, and the `SERVICE_VERSION` value. Do not hardcode OTLP endpoints or tokens.
 

@@ -1,0 +1,11 @@
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+COPY go.mod .
+COPY go.sum .
+COPY main.go .
+RUN go build -o /out/cache-exporter .
+
+FROM alpine:3.20
+COPY --from=build /out/cache-exporter /cache-exporter
+EXPOSE 8080
+CMD ["/cache-exporter"]

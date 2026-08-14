@@ -20,6 +20,7 @@ const contextAppDeployments = [
   "control-ui", "gateway-api", "catalog-api", "job-api", "cache-api", "job-worker", "result-api",
   "analysis-api", "mock-llm", "aws-lambda-trigger", "azure-functions-trigger",
   "google-cloud-function-trigger", "grpc-service", "load-generator",
+  "cache-exporter", "queue-exporter",
 ];
 const contextData = [["deployment", "redis"], ["statefulset", "postgres"], ["statefulset", "activemq"]];
 

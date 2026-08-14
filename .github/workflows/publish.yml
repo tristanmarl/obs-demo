@@ -33,6 +33,8 @@ jobs:
             shared_ctx: false
           - service: load-generator
             shared_ctx: false
+          - service: cache-exporter
+            shared_ctx: false
           # Services that need the shared apps/ context (Dockerfile at apps/<service>/Dockerfile, context at apps/)
           - service: job-worker
             shared_ctx: true
@@ -45,6 +47,8 @@ jobs:
           - service: mock-llm
             shared_ctx: true
           - service: grpc-service
+            shared_ctx: true
+          - service: queue-exporter
             shared_ctx: true
 
     steps:

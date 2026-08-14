@@ -1,6 +1,6 @@
 # NebulaTrace
 
-NebulaTrace is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using both OneAgent and OpenTelemetry.
+NebulaTrace is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
 
 ## Architecture
 
@@ -20,6 +20,8 @@ flowchart LR
   broker --> worker["job-worker"]
   worker -->|"ValidateJob / ExecuteJob / VerifyJob"| grpc["grpc-service"]
   worker --> result["result-api"]
+  redis -.->|"Prometheus scrape (OneAgent)"| cexp["cache-exporter"]
+  postgres -.->|"Prometheus scrape (OTLP)"| qexp["queue-exporter"]
 ```
 
 The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits shared telemetry context for a private demo environment. It does not imitate a company or business process.
@@ -46,6 +48,10 @@ kubectl apply -f https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/
 ```
 
 For a full setup, provide an environment Access Token and run `setup.sh`. The script uses the canonical app manifest and a stable Dynatrace Operator release.
+
+## Prometheus scraping
+
+`cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by the Dynatrace ActiveGate. Both emit identical control metrics so the two Dynatrace ingest paths can be compared in a single DQL query by `variant`. See `docs/telemetry.md` for the metric contract and `make enable-prometheus-scraping` for the two prerequisites.
 
 ## Controls
 

@@ -33,3 +33,49 @@ The analysis path uses `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.
 ## Custom metrics
 
 The workload uses `nebulatrace.jobs.*`, `nebulatrace.job.*`, `nebulatrace.worker.*`, `nebulatrace.grpc.duration`, `nebulatrace.cache.*`, `nebulatrace.function.*`, `nebulatrace.analysis.*`, and non-duplicate `nebulatrace.llm.*` metrics. Duration histograms declare unit `s`.
+
+## Prometheus scraping
+
+`cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose `/metrics` on port 8080 and are scraped by the Dynatrace ActiveGate via Istio's merged metrics endpoint (`15020/stats/prometheus`). The Dynatrace annotations point at the Istio port; the `prometheus.io/*` annotations tell Istio where the app's own metrics live so it merges them into the sidecar endpoint:
+
+```yaml
+prometheus.io/scrape: "true"
+prometheus.io/port: "8080"
+prometheus.io/path: /metrics
+metrics.dynatrace.com/scrape: "true"
+metrics.dynatrace.com/port: "15020"
+metrics.dynatrace.com/path: /stats/prometheus
+metrics.dynatrace.com/filter: '{"mode": "include", "names": ["nebulatrace_*"]}'
+```
+
+The filter keeps only `nebulatrace_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
+
+Prometheus metric names use underscores (`nebulatrace_*`); OTel metric names use dots (`nebulatrace.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
+
+### Metric contract
+
+Both exporters emit identical control metrics for cross-variant comparison:
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `nebulatrace_probe_scrapes_total` | counter | `exporter`, `variant` | Incremented on each `/metrics` render |
+| `nebulatrace_probe_value` | gauge | `exporter`, `variant` | Deterministic sawtooth: `epoch % 60` |
+| `nebulatrace_probe_build_info` | gauge | `exporter`, `variant`, `version` | Always 1 |
+
+Domain metrics:
+
+| Metric | Type | Labels | Source |
+|---|---|---|---|
+| `nebulatrace_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
+| `nebulatrace_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
+| `nebulatrace_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
+| `nebulatrace_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
+
+`nebulatrace_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
+
+### Prerequisites
+
+See `scripts/enable-prometheus-scraping.sh` or run `make enable-prometheus-scraping` for the exact steps. In short:
+
+1. **In-cluster ActiveGate with `kubernetes-monitoring`** — provided by `make install-dynatrace` / `setup.sh`. The no-ActiveGate DynaKube variant (`dynakube-noactivegate.yaml.tpl`) does not include an ActiveGate; scraping requires one already running in-cluster with the `kubernetes-monitoring` module.
+2. **Tenant setting** — Kubernetes cluster settings → enable "Monitor Kubernetes namespaces, services, workloads, and pods" and "Monitor annotated Prometheus exporters".

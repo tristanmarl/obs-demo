@@ -67,6 +67,11 @@ done
 docker run -d --name nebulatrace-load-generator --network nebulatrace \
   -e GATEWAY_URL=http://gateway-api:8080 -e LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}" \
   -e LOADGEN_BURST="${LOADGEN_BURST:-1}" "$image/load-generator:$tag" >/dev/null
+docker run -d --name nebulatrace-cache-exporter --network nebulatrace --network-alias cache-exporter \
+  -e REDIS_URL=redis://redis:6379 "$image/cache-exporter:$tag" >/dev/null
+docker run -d --name nebulatrace-queue-exporter --network nebulatrace --network-alias queue-exporter \
+  "${otel_env[@]}" -e DATABASE_URL=postgresql://nebulatrace:nebulatrace@postgres:5432/nebulatrace \
+  "$image/queue-exporter:$tag" >/dev/null
 docker run -d --name nebulatrace-control-ui --network nebulatrace -p 18000:8080 \
   "$image/control-ui:$tag" >/dev/null
 

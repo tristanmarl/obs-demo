@@ -6,6 +6,7 @@ for container in \
   nebulatrace-catalog-api nebulatrace-job-api nebulatrace-cache-api nebulatrace-result-api \
   nebulatrace-analysis-api nebulatrace-mock-llm nebulatrace-job-worker nebulatrace-grpc-service \
   nebulatrace-aws-lambda-trigger nebulatrace-azure-functions-trigger nebulatrace-google-cloud-function-trigger \
+  nebulatrace-cache-exporter nebulatrace-queue-exporter \
   nebulatrace-postgres nebulatrace-activemq nebulatrace-redis
 do
   docker rm -f "$container" >/dev/null 2>&1 || true

@@ -293,6 +293,8 @@ rules:
       - google-cloud-function-trigger
       - grpc-service
       - load-generator
+      - cache-exporter
+      - queue-exporter
     verbs: ["get", "patch"]
   - apiGroups: ["networking.istio.io"]
     resources: ["virtualservices"]
@@ -745,6 +747,71 @@ spec:
       containers:
         - name: load-generator
           image: ghcr.io/tristanmarl/nebulatrace/load-generator:latest
+          envFrom: [{configMapRef: {name: nebulatrace-config}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-exporter
+  namespace: nebulatrace
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: cache-exporter}}
+  template:
+    metadata:
+      labels: {app: cache-exporter}
+      annotations:
+        oneagent.dynatrace.com/inject: "true"
+        metadata.dynatrace.com/service: cache-exporter
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["nebulatrace_*"]}'
+    spec:
+      containers:
+        - name: cache-exporter
+          image: ghcr.io/tristanmarl/nebulatrace/cache-exporter:latest
+          ports: [{containerPort: 8080}]
+          envFrom: [{configMapRef: {name: nebulatrace-config}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache-exporter
+  namespace: nebulatrace
+spec:
+  selector: {app: cache-exporter}
+  ports: [{name: http, port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queue-exporter
+  namespace: nebulatrace
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: queue-exporter}}
+  template:
+    metadata:
+      labels: {app: queue-exporter}
+      annotations:
+        otlp-exporter-configuration.dynatrace.com/inject: "true"
+        metadata.dynatrace.com/service: queue-exporter
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["nebulatrace_*"]}'
+    spec:
+      containers:
+        - name: queue-exporter
+          image: ghcr.io/tristanmarl/nebulatrace/queue-exporter:latest
+          ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: nebulatrace-config}}]
 ---
 apiVersion: networking.istio.io/v1

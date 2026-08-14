@@ -5,10 +5,11 @@ NebulaTrace is a small Kubernetes workload for exploring observability in a dist
 ## Architecture
 
 - Namespaces stay `nebulatrace` and `nebulatrace-data`; Istio sidecars are enabled only for the app namespace.
-- Keep PostgreSQL, Redis, ActiveMQ Classic, Istio, Dynatrace Operator, OneAgent, and OTLP auto-configuration.
+- Keep PostgreSQL, Redis, ActiveMQ Classic, Istio, Dynatrace Operator, OneAgent, OTLP auto-configuration, and ActiveGate Prometheus scraping.
 - Main flow: `control-ui / load-generator -> gateway-api -> job-api -> PostgreSQL -> ActiveMQ jobs.requested -> job-worker -> grpc-service -> result-api`.
 - Supporting flows: `gateway-api -> catalog-api -> PostgreSQL`, `gateway-api -> cache-api -> Redis`, and `gateway-api -> analysis-api -> mock-llm`.
 - `aws-lambda-trigger`, `azure-functions-trigger`, and `google-cloud-function-trigger` are simulated FaaS workloads that submit ordinary jobs through `gateway-api`.
+- `cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by ActiveGate through Istio's merged endpoint (`15020/stats/prometheus`). Both emit identical `nebulatrace_probe_*` control metrics for cross-variant comparison. `nebulatrace_jobs_pending` from `queue-exporter` is the leading indicator for the `queue-backlog` scenario. Prometheus metric names use underscores (`nebulatrace_*`); OTel names use dots (`nebulatrace.*`).
 - Keep React/Vite, Node/Fastify, Java/Spring Boot, Go, and Python/FastAPI. Do not add Helm, Kustomize, Terraform, a frontend component library, a shared service framework, dashboards, or another narrative domain.
 
 ## Development
