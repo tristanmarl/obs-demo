@@ -26,6 +26,7 @@ spec:
     protocols:
       - otlp
   oneAgent:
+    hostGroup: "${DT_HOST_GROUP}"
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
