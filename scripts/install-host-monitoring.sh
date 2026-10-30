@@ -38,7 +38,10 @@ fi
 
 HOST_DB_IP="${HOST_DB_IP:-$(hostname -I | awk '{print $1}')}"
 COLLECTOR_VERSION="${COLLECTOR_VERSION:-0.59.0}"
-INGRESS_URL="${INGRESS_URL:-http://127.0.0.1}"
+INGRESS_URL="${INGRESS_URL:-http://${HOST_DB_IP}}"
+if [ -z "${JOURNALD_DIRECTORY:-}" ]; then
+  if [ -d /var/log/journal ]; then JOURNALD_DIRECTORY=/var/log/journal; else JOURNALD_DIRECTORY=/run/log/journal; fi
+fi
 SERVICE_VERSION="${SERVICE_VERSION:-${IMAGE_TAG:-dev}}"
 KUBECTL="${KUBECTL:-kubectl}"
 export HOST_DB_IP
@@ -80,7 +83,7 @@ GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
-(umask 027; printf '[client]\nuser=exporter\npassword=%s\nhost=127.0.0.1\n' "$EXPORTER_PASSWORD" > /etc/mysql/traceforge-exporter.cnf)
+(umask 027; printf '[client]\nuser=exporter\npassword=%s\nsocket=/run/mysqld/mysqld.sock\n' "$EXPORTER_PASSWORD" > /etc/mysql/traceforge-exporter.cnf)
 chown root:prometheus /etc/mysql/traceforge-exporter.cnf
 chmod 640 /etc/mysql/traceforge-exporter.cnf
 if grep -q '^ARGS=' /etc/default/prometheus-mysqld-exporter 2>/dev/null; then
@@ -107,7 +110,7 @@ curl -fsSL -o "$TMP/checksums.txt" "$BASE_URL/checksums.txt"
 tar -xzf "$TMP/$TARBALL" -C "$TMP" dynatrace-otel-collector
 install -m 755 "$TMP/dynatrace-otel-collector" /usr/local/bin/dynatrace-otel-collector
 install -m 644 host/collector/config.yaml /etc/traceforge/otel-collector.yaml
-(umask 077; printf 'DT_ENDPOINT=%s/api/v2/otlp\nDT_API_TOKEN=%s\n' "${DT_TENANT_URL%/}" "$DT_TOKEN" > /etc/traceforge/otel-collector.env)
+(umask 077; printf 'DT_ENDPOINT=%s/api/v2/otlp\nDT_API_TOKEN=%s\nJOURNALD_DIRECTORY=%s\n' "${DT_TENANT_URL%/}" "$DT_TOKEN" "$JOURNALD_DIRECTORY" > /etc/traceforge/otel-collector.env)
 
 # Edge agent
 docker build -q --target bin --output "type=local,dest=$TMP/edge" host/edge-agent >/dev/null

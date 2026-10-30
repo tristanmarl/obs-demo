@@ -17,7 +17,7 @@ receivers:
       http:
         endpoint: 127.0.0.1:4318
   journald:
-    directory: /run/log/journal
+    directory: ${env:JOURNALD_DIRECTORY}
     priority: info
     start_at: end
     operators:

@@ -51,7 +51,7 @@ cp .env.example .env   # set DT_TENANT_URL and DT_OTEL_INGEST_TOKEN
 make host-monitoring
 ```
 
-The script installs MariaDB and the mysqld exporter, downloads and checksum-verifies the Dynatrace OTel Collector (`COLLECTOR_VERSION`, default 0.59.0), builds `tf-edge-agent` with Docker, installs both systemd units, applies `deploy/k8s/host/host-db.yaml.tpl`, and points `result-api` at the database through a `host-db` Secret. Optional overrides: `HOST_DB_IP`, `INGRESS_URL`, `KUBECTL`. Reruns reuse the stored database passwords in `/etc/traceforge/host-db.env`.
+The script installs MariaDB and the mysqld exporter, downloads and checksum-verifies the Dynatrace OTel Collector (`COLLECTOR_VERSION`, default 0.59.0), builds `tf-edge-agent` with Docker, installs both systemd units, applies `deploy/k8s/host/host-db.yaml.tpl`, and points `result-api` at the database through a `host-db` Secret. Optional overrides: `HOST_DB_IP`, `INGRESS_URL` (default `http://<node IP>`, because the k3s service load balancer usually does not catch traffic to 127.0.0.1; empty means node IP), `JOURNALD_DIRECTORY`, `KUBECTL`. Reruns reuse the stored database passwords in `/etc/traceforge/host-db.env`.
 
 Check it:
 
@@ -67,5 +67,5 @@ In Dynatrace, DQL such as `fetch dt.entity.otel:host` or `smartscapeNodes "otel_
 
 - MariaDB emits no spans. Dynatrace does not automatically draw an edge from `result-api`'s database call to the `mariadbd` `otel:process`; the link is made by the demo narrative, host, and timing.
 - The host collector's hostmetrics overlap with Kubernetes node metrics from the cluster; expect the same machine to appear in both views.
-- The journald receiver reads `/run/log/journal`, as in Dynatrace's reference config. If the host stores its journal only under `/var/log/journal`, adjust `directory` in `host/collector/config.yaml`.
+- The journald receiver reads `JOURNALD_DIRECTORY`, which the install script sets to `/var/log/journal` if it exists and `/run/log/journal` otherwise. Override it with the `JOURNALD_DIRECTORY` environment variable.
 - Only the install script is provided; remove the units and packages manually.
