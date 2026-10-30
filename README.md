@@ -42,7 +42,7 @@ More detail: [docs/architecture.md](docs/architecture.md), [docs/telemetry.md](d
 
 ![Observability Demo control UI](docs/images/obs-demo-control-ui.jpg)
 
-*The screenshot predates the rename and the resource-attributes and scenario-card changes; the layout is otherwise representative.*
+*Captured from local Docker mode (`make run-local`). On a cluster the scenario cards show live state and the resource-attributes editor is available.*
 
 ## Quick start (single EC2 k3s host)
 
