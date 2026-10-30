@@ -40,3 +40,20 @@ dt { color: #71829d; } dd { margin: 0; text-align: right; }
 code { color: #8ce5c2; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 760px) { main { width: min(100% - 1rem, 1120px); padding-top: 1.5rem; } .job-form { grid-template-columns: 1fr; } .section-heading { display: block; } .section-heading button { margin-bottom: 1rem; } .action-row button { flex: 1 1 12rem; } }
+.kv { margin: .8rem 0; padding: .8rem; border: 1px solid #263856; border-radius: 10px; }
+.kv legend { padding: 0 .4rem; color: #a6b4c9; font-weight: 700; }
+.kv-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: .5rem; margin-bottom: .5rem; }
+.kv-block { margin: .8rem 0; }
+.workload-table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+.workload-table caption { text-align: left; color: #a6b4c9; font-weight: 700; padding-bottom: .4rem; }
+.workload-table th, .workload-table td { padding: .3rem .4rem; text-align: left; border-bottom: 1px solid #1d2c47; font-weight: 400; }
+.workload-table thead th { color: #71829d; font-size: .82rem; }
+.problem { color: #ff9a9a; }
+.plan ul { padding-left: 1.2rem; }
+.queries { margin-top: 1rem; }
+.queries summary { cursor: pointer; font-weight: 700; }
+.snippet { display: flex; gap: .5rem; align-items: center; justify-content: space-between; margin: .3rem 0; padding: .4rem .6rem; border-radius: 8px; background: #070d18; overflow-x: auto; }
+.snippet code { white-space: pre; }
+.snippet button { padding: .3rem .7rem; flex: none; }
+.queries summary:focus-visible { outline: 3px solid #f7c873; outline-offset: 2px; }
+@media (max-width: 760px) { .kv-row { grid-template-columns: 1fr; } }

@@ -42,7 +42,7 @@ FastAPI and requests instrumentation stay enabled. ActiveMQ producer, receive, a
 
 ## Controls
 
-Scenario state is backend-derived. Resource attributes are parsed server-side, patched only to the explicit application/data allowlist, and protected by RBAC `resourceNames` without list permission. `DEMO_CONTROLS_ENABLED=false` hides mutation controls and returns 404 for mutations.
+Scenario state is backend-derived. Resource attributes are layered (`config/attributes.yaml` -> ConfigMap `obs-demo-attributes`; global -> preset -> team -> workload), validated server-side in `apps/gateway-api/attributes.js`, applied per workload (env, `metadata.dynatrace.com/*` annotations, `DT_CUSTOM_PROP`) only to the explicit application/data allowlist, via the UI or `make attributes` (same code path), and protected by RBAC `resourceNames` without list permission. `DEMO_CONTROLS_ENABLED=false` hides mutation controls and returns 404 for mutations.
 
 Keep the bounded Java allocation scenario, truthful downstream status propagation, accessibility basics, and complete reset reliability. Do not add dashboards, packaging layers, framework churn, or compatibility routes without a real consumer.
 

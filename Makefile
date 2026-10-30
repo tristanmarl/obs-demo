@@ -9,7 +9,7 @@ SERVICES := control-ui gateway-api catalog-api cache-api result-api load-generat
 SHARED_CTX_SERVICES := job-api job-worker function-trigger analysis-api mock-llm grpc-service queue-exporter
 ALL_SERVICES := $(SERVICES) $(SHARED_CTX_SERVICES)
 
-.PHONY: build-images build test verify run-local stop-local push-images publish k3s-load-images k3s-deploy install-istio install-dynatrace deploy app-url status restart start stop set-owner reset enable-prometheus-scraping host-monitoring
+.PHONY: build-images build test verify run-local stop-local push-images publish k3s-load-images k3s-deploy install-istio install-dynatrace deploy app-url status restart start stop attributes reset enable-prometheus-scraping host-monitoring
 
 build-images:
 	@for service in $(SERVICES); do docker build -t $(IMAGE_REGISTRY)/$$service:$(IMAGE_TAG) apps/$$service; done
@@ -81,9 +81,9 @@ start:
 stop:
 	./scripts/scale-demo.sh stop
 
-set-owner:
-	@test -n "$(OWNER)" || (echo "Usage: make set-owner OWNER=service-monitoring"; exit 1)
-	./scripts/set-owner.sh "$(OWNER)"
+attributes:
+	./scripts/apply-attributes.sh $(if $(PREVIEW),--preview)
+
 
 reset:
 	./scripts/reset-demo.sh

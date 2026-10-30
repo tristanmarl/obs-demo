@@ -91,11 +91,6 @@ spec:
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring"
-            - name: DT_CUSTOM_PROP
-              value: "dt.owner=service-monitoring"
           envFrom:
             - secretRef:
                 name: data-secrets
@@ -172,11 +167,6 @@ spec:
               containerPort: 61613
             - name: web
               containerPort: 8161
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring"
-            - name: DT_CUSTOM_PROP
-              value: "dt.owner=service-monitoring"
           readinessProbe:
             tcpSocket: {port: 61613}
             initialDelaySeconds: 30
@@ -240,11 +230,6 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring"
-            - name: DT_CUSTOM_PROP
-              value: "dt.owner=service-monitoring"
           readinessProbe:
             exec:
               command: ["redis-cli", "ping"]
@@ -294,8 +279,6 @@ data:
   GRPC_ADDRESS: grpc-service:50051
   GATEWAY_URL: http://gateway-api:8080
   SERVICE_VERSION: "latest"
-  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring"
-  DT_CUSTOM_PROP: "dt.owner=service-monitoring"
   DEMO_CONTROLS_ENABLED: "true"
   LOADGEN_DELAY_MS: "750"
   LOADGEN_BURST: "1"
@@ -339,6 +322,10 @@ rules:
   - apiGroups: ["networking.istio.io"]
     resources: ["virtualservices"]
     resourceNames: ["cache-api"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["obs-demo-attributes"]
     verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -456,6 +443,10 @@ spec:
         - name: gateway-api
           image: ghcr.io/tristanmarl/obs-demo/gateway-api:latest
           ports: [{containerPort: 8080}]
+          env:
+            # Optional Secret obs-demo-dt-events (DT_EVENTS_URL, DT_EVENTS_TOKEN) enables CUSTOM_DEPLOYMENT events.
+            - {name: DT_EVENTS_URL, valueFrom: {secretKeyRef: {name: obs-demo-dt-events, key: DT_EVENTS_URL, optional: true}}}
+            - {name: DT_EVENTS_TOKEN, valueFrom: {secretKeyRef: {name: obs-demo-dt-events, key: DT_EVENTS_TOKEN, optional: true}}}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}
@@ -1061,7 +1052,61 @@ spec:
             failureThreshold: 3
           resources:
             requests: {cpu: 25m, memory: 96Mi}
-            limits: {memory: 256Mi}---
+            limits: {memory: 256Mi}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obs-demo-attributes
+  namespace: obs-demo
+data:
+  attributes.yaml: |
+    # Layered resource attributes. Precedence: global -> activePreset -> team -> workload.
+    # Applied per workload as OTEL_RESOURCE_ATTRIBUTES, metadata.dynatrace.com/<key> pod annotations
+    # and (OneAgent workloads) DT_CUSTOM_PROP. service.name and service.instance.id are not allowed.
+    # Edit here and run `make attributes` (or `make attributes PREVIEW=1`), or edit in the control UI.
+    activePreset: ""
+    
+    global:            # every workload, including the data namespace
+      deployment.environment.name: demo
+      service.namespace: obs-demo
+    
+    teams:
+      service-monitoring:
+        dt.owner: service-monitoring
+        dt.cost.costcenter: observability-demo
+      data-platform:
+        dt.owner: data-platform
+        dt.cost.costcenter: observability-demo
+    
+    workloads:
+      control-ui: { team: service-monitoring }
+      gateway-api: { team: service-monitoring }
+      catalog-api: { team: service-monitoring, attributes: { tier: core } }
+      job-api: { team: service-monitoring, attributes: { tier: core } }
+      cache-api: { team: service-monitoring, attributes: { tier: core } }
+      job-worker: { team: service-monitoring, attributes: { tier: core } }
+      result-api: { team: service-monitoring, attributes: { tier: core } }
+      analysis-api: { team: service-monitoring }
+      mock-llm: { team: service-monitoring }
+      aws-lambda-trigger: { team: service-monitoring }
+      azure-functions-trigger: { team: service-monitoring }
+      google-cloud-function-trigger: { team: service-monitoring }
+      grpc-service: { team: service-monitoring, attributes: { tier: core } }
+      load-generator: { team: service-monitoring }
+      cache-exporter: { team: service-monitoring }
+      queue-exporter: { team: service-monitoring }
+      redis: { team: data-platform, attributes: { tier: data } }
+      postgres: { team: data-platform, attributes: { tier: data } }
+      activemq: { team: data-platform, attributes: { tier: data } }
+    
+    presets:           # named overlays; set activePreset (or pick one in the UI) to merge one over global
+      ownership-demo:
+        dt.owner: platform-engineering
+        dt.cost.product: observability-demo
+      security-context:
+        dt.security_context: demo-restricted
+---
 apiVersion: networking.istio.io/v1
 kind: Gateway
 metadata:

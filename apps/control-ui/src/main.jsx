@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Attributes } from "./Attributes.jsx";
 import "./style.css";
 
 const api = "/api";
@@ -9,11 +10,9 @@ function App() {
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
   const [controlsEnabled, setControlsEnabled] = useState(true);
-  const [attrs, setAttrs] = useState("");
   const [result, setResult] = useState(null);
   const [operation, setOperation] = useState("");
   const [pendingScenario, setPendingScenario] = useState(null);
-  const [attrsPending, setAttrsPending] = useState(false);
   const [job, setJob] = useState({ name: "demo-job", workUnits: 10 });
 
   async function callApi(path, options = {}) {
@@ -43,7 +42,6 @@ function App() {
       if (!response.ok) throw new Error("offline");
       return response.json();
     }).then(setStatus).catch(() => setStatus({ error: "offline" }));
-    fetch(`${api}/resource-attrs`).then(response => response.json()).then(body => setAttrs(body.attrs || "")).catch(() => {});
     refreshScenarios();
   }, []);
 
@@ -92,21 +90,6 @@ function App() {
     }
   }
 
-  async function applyAttrs() {
-    setAttrsPending(true);
-    setOperation("Applying telemetry context and restarting workloads…");
-    try {
-      const { response } = await callApi("/resource-attrs", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attrs }),
-      });
-      setOperation(response.ok ? "Telemetry context applied" : `Telemetry context rejected: HTTP ${response.status}`);
-    } catch {
-      setOperation("Telemetry context unavailable");
-    } finally {
-      setAttrsPending(false);
-    }
-  }
-
   const apiAvailable = status?.controlApi === "connected";
   const controls = controlsEnabled && apiAvailable;
   return (
@@ -150,11 +133,7 @@ function App() {
         </div>
       </section>}
 
-      {controls && <section className="section">
-        <h2>Demo telemetry context</h2>
-        <p>Comma-separated <code>key=value</code> attributes. Applying context restarts application and data workloads; disable controls before exposing ingress publicly.</p>
-        <div className="context-row"><label className="sr-only" htmlFor="attrs">Telemetry resource attributes</label><input id="attrs" value={attrs} onChange={event => setAttrs(event.target.value)} placeholder="team=observability,region=demo" disabled={attrsPending} /><button onClick={applyAttrs} disabled={attrsPending || !attrs.trim()}>{attrsPending ? "Applying…" : "Apply & restart"}</button></div>
-      </section>}
+      {controls && <Attributes setOperation={setOperation} />}
 
       <p className="operation" aria-live="polite">{operation}</p>
       {result && <section className="result section"><h2>Live API output</h2><p>{result.path} · HTTP {result.status}</p><pre>{JSON.stringify(result.body, null, 2)}</pre></section>}

@@ -35,7 +35,7 @@ Jobs use `{name, workUnits}`. `name` is 1–80 ASCII lowercase letters, numbers,
 
 - `apps/otel_setup.py` is the only shared Python OTel setup helper.
 - OTel resources set `service.name` per workload, `service.namespace=obs-demo`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION`/`IMAGE_TAG`.
-- Never put `service.name` in shared `OTEL_RESOURCE_ATTRIBUTES`.
+- Never put `service.name` in `OTEL_RESOURCE_ATTRIBUTES`; env attributes override the Python defaults.
 - Keep W3C propagation, current messaging attributes, current `gen_ai.*` attributes, seconds for duration histograms, and low-cardinality metric dimensions.
 - Never record prompt or response bodies.
 
@@ -43,7 +43,7 @@ Jobs use `{name, workUnits}`. `name` is 1–80 ASCII lowercase letters, numbers,
 
 `gateway-api` owns the scenario catalog and derives active state from explicit deployment reads plus the `cache-api` VirtualService. Mutation controls default to enabled for this private demo; `DEMO_CONTROLS_ENABLED=false` returns 404 and hides mutation controls. No production authentication is added; disable controls before exposing ingress publicly.
 
-Resource-attribute validation is a trust boundary: 2,048 characters, 32 entries, non-empty key/value, key pattern `[A-Za-z][A-Za-z0-9_.-]{0,127}`, no duplicates, and no `service.name` or `service.instance.id`. RBAC uses exact `resourceNames` and no list permission. The allowlist includes application and data workloads, including all three simulated FaaS deployments.
+Resource attributes are layered in `config/attributes.yaml` (global, preset, team, workload) and applied by `gateway-api` (`attributes.js` validates, `attributes-store.js` applies; `make attributes` runs the same code). Validation is a trust boundary for every layer and the effective set: 2,048 characters, 32 entries, non-empty key/value, key pattern `[A-Za-z][A-Za-z0-9_.-]{0,127}`, no duplicates, and no `service.name` or `service.instance.id`. RBAC uses exact `resourceNames` (workloads and the `obs-demo-attributes` ConfigMap) and no list permission. The allowlist includes application and data workloads, including all three simulated FaaS deployments.
 
 Never commit `.env`, real Dynatrace tokens, GHCR tokens, tenant URLs, or kubeconfigs. Before committing:
 

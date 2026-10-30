@@ -27,8 +27,6 @@ fi
 
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/obs-demo}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring}"
-export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
 export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
@@ -60,6 +58,8 @@ YAML
   envsubst < deploy/k8s/data/data.yaml
   echo "---"
   envsubst < deploy/k8s/app/app.yaml.tpl
+  echo "---"
+  ./scripts/attributes-configmap.sh
   echo "---"
   cat deploy/k8s/istio/istio.yaml
 } > deploy/dist/obs-demo.yaml

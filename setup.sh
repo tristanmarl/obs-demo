@@ -20,13 +20,11 @@ export DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
 export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-obs-demo}"
 export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/obs-demo}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring}"
-export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
 export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
 export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
-export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
+export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.05}"
 export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
 export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
 
@@ -164,6 +162,10 @@ fi
 
 step "Waiting for app rollout"
 kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
+# Layered resource attributes (config/attributes.yaml) are applied by the gateway; skip when run without the repo.
+if [ -f scripts/apply-attributes.sh ]; then
+  ./scripts/apply-attributes.sh || echo "Attributes not applied; run 'make attributes' once gateway-api is ready."
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 

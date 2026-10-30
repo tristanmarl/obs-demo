@@ -20,8 +20,6 @@ data:
   GRPC_ADDRESS: grpc-service:50051
   GATEWAY_URL: http://gateway-api:8080
   SERVICE_VERSION: "${IMAGE_TAG}"
-  OTEL_RESOURCE_ATTRIBUTES: "${OTEL_RESOURCE_ATTRIBUTES}"
-  DT_CUSTOM_PROP: "${DT_CUSTOM_PROP}"
   DEMO_CONTROLS_ENABLED: "${DEMO_CONTROLS_ENABLED}"
   LOADGEN_DELAY_MS: "${LOADGEN_DELAY_MS}"
   LOADGEN_BURST: "${LOADGEN_BURST}"
@@ -65,6 +63,10 @@ rules:
   - apiGroups: ["networking.istio.io"]
     resources: ["virtualservices"]
     resourceNames: ["cache-api"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["obs-demo-attributes"]
     verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -182,6 +184,10 @@ spec:
         - name: gateway-api
           image: ${IMAGE_REGISTRY}/gateway-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
+          env:
+            # Optional Secret obs-demo-dt-events (DT_EVENTS_URL, DT_EVENTS_TOKEN) enables CUSTOM_DEPLOYMENT events.
+            - {name: DT_EVENTS_URL, valueFrom: {secretKeyRef: {name: obs-demo-dt-events, key: DT_EVENTS_URL, optional: true}}}
+            - {name: DT_EVENTS_TOKEN, valueFrom: {secretKeyRef: {name: obs-demo-dt-events, key: DT_EVENTS_TOKEN, optional: true}}}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}

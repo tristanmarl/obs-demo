@@ -24,11 +24,11 @@ flowchart LR
   postgres -.->|"Prometheus scrape (OTLP)"| qexp["queue-exporter"]
 ```
 
-The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits shared telemetry context for a private demo environment. It does not imitate a company or business process.
+The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits layered resource attributes for a private demo environment. It does not imitate a company or business process.
 
 ![Observability Demo control UI](docs/images/obs-demo-control-ui.jpg)
 
-The screenshot shows the live control surface with background load, manual request controls, failure scenarios, and telemetry context editing.
+The screenshot shows the live control surface with background load, manual request controls, failure scenarios, and resource-attribute editing (captured before the rename).
 
 ## Run it
 
@@ -59,7 +59,7 @@ An optional chain runs on the k3s EC2 host itself: `obs-edge-agent` (systemd) su
 
 ## Controls
 
-Failure scenarios are deterministic and backend-derived. Applying one resets all targets before enabling it. **Demo telemetry context** validates and patches only the explicit application/data allowlist, then restarts those workloads. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.
+Failure scenarios are deterministic and backend-derived. Applying one resets all targets before enabling it. **Resource attributes** are layered (global, preset, team, workload) from `config/attributes.yaml`, editable in the UI or applied with `make attributes` (`make attributes PREVIEW=1` shows the diff first). The gateway validates them and patches only the explicit application/data allowlist, restarting just the workloads whose effective attributes changed. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.
 
 ```bash
 make reset
@@ -78,7 +78,7 @@ Important defaults are in `.env.example`: `LOADGEN_DELAY_MS`, `LOADGEN_ERROR_RAT
 make verify
 ```
 
-The target checks shell syntax, resource-attribute validation, Python syntax, Go tests, the UI build, the bounded Java test, the gRPC contract check, every service image, stale vocabulary/secrets, and reproducible manifest rendering with no unresolved placeholders. When a cluster is available:
+The target checks shell syntax, resource-attribute layering and validation tests, Python syntax, Go tests, the UI build, the bounded Java test, the gRPC contract check, every service image, stale vocabulary/secrets, and reproducible manifest rendering with no unresolved placeholders. When a cluster is available:
 
 ```bash
 make k3s-load-images

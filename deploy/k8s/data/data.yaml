@@ -32,11 +32,6 @@ spec:
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "${OTEL_RESOURCE_ATTRIBUTES}"
-            - name: DT_CUSTOM_PROP
-              value: "${DT_CUSTOM_PROP}"
           envFrom:
             - secretRef:
                 name: data-secrets
@@ -113,11 +108,6 @@ spec:
               containerPort: 61613
             - name: web
               containerPort: 8161
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "${OTEL_RESOURCE_ATTRIBUTES}"
-            - name: DT_CUSTOM_PROP
-              value: "${DT_CUSTOM_PROP}"
           readinessProbe:
             tcpSocket: {port: 61613}
             initialDelaySeconds: 30
@@ -181,11 +171,6 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
-          env:
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "${OTEL_RESOURCE_ATTRIBUTES}"
-            - name: DT_CUSTOM_PROP
-              value: "${DT_CUSTOM_PROP}"
           readinessProbe:
             exec:
               command: ["redis-cli", "ping"]

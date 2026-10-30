@@ -2,7 +2,23 @@
 
 ## Resource identity
 
-`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=obs-demo`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
+`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=obs-demo`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Values in `OTEL_RESOURCE_ATTRIBUTES` override those defaults; `service.name` always comes from code. `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
+
+## Layered resource attributes
+
+`config/attributes.yaml` defines `global`, `teams`, `workloads` and `presets` (one optional `activePreset`). The effective set per workload is merged global, then preset, then team, then workload. It is stored in the ConfigMap `obs-demo-attributes`, seeded by the deploy scripts and the dist manifest, and applied by `gateway-api` (UI: Resource attributes, CLI: `make attributes`, preview with `make attributes PREVIEW=1`). Both use the same code (`apps/gateway-api/attributes.js`, `attributes-store.js`).
+
+For each workload whose live state differs from the effective set, the gateway patches the pod template, which triggers a rollout:
+
+- container env `OTEL_RESOURCE_ATTRIBUTES` (that workload's set; sorted `key=value,...`),
+- pod annotations `metadata.dynatrace.com/<key>: <value>`; stale `metadata.dynatrace.com/*` keys are removed and `metadata.dynatrace.com/service` is kept,
+- for OneAgent-injected workloads also `DT_CUSTOM_PROP` as space-separated `key=value` (whitespace in values becomes `_`).
+
+What the Dynatrace documentation says (https://docs.dynatrace.com/docs/ingest-from/setup-on-k8s/guides/metadata-automation/k8s-metadata-telemetry-enrichment): pod annotations with the `metadata.dynatrace.com/` prefix enrich OneAgent data and OTLP data sent through the automatic OTLP exporter configuration without tenant-side rules, but only `dt.security_context`, `dt.cost.costcenter` and `dt.cost.product` also enrich Kubernetes metrics and events; other keys need central enrichment rules. The page also warns against combining manual annotations with settings-based enrichment rules, and notes a newer tagging model supersedes it. Workloads that use `OTEL_RESOURCE_ATTRIBUTES` carry every key on their OTLP resource regardless. The `DT_CUSTOM_PROP` format and the event properties below were not verifiable against a tenant here.
+
+Optional deployment events: if the Secret `obs-demo-dt-events` (keys `DT_EVENTS_URL` = full Events API v2 ingest URL, `DT_EVENTS_TOKEN` with `events.ingest`) exists, `gateway-api` posts one `CUSTOM_DEPLOYMENT` event per changed workload (entity selector `type(SERVICE),entityName.equals("<workload>")`, diff summary in the `change` property). Without the Secret nothing is sent.
+
+`service.name` and `service.instance.id` are rejected at every layer. Limits per effective set: 32 entries and 2,048 characters; keys also have to fit a pod annotation name (63 characters, ending in a letter or number); values must not contain commas or line breaks.
 
 Kubernetes workload names equal service names. OneAgent annotations and Dynatrace OTLP auto-configuration remain on the workloads that use them.
 
@@ -45,10 +61,10 @@ prometheus.io/path: /metrics
 metrics.dynatrace.com/scrape: "true"
 metrics.dynatrace.com/port: "15020"
 metrics.dynatrace.com/path: /stats/prometheus
-metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
+metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*", "istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
 ```
 
-The filter keeps only `obs_demo_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
+The filter keeps only `obs_demo_*` and three Istio metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit. Every other app pod carries the same scrape annotations with only the three Istio names.
 
 Prometheus metric names use underscores (`obs_demo_*`); OTel metric names use dots (`obs_demo.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
 
@@ -69,7 +85,7 @@ Domain metrics:
 | `obs_demo_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
 | `obs_demo_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
 | `obs_demo_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
-| `obs_demo_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
+| `obs_demo_jobs_pending` | gauge | `variant=otlp` | Jobs in `queued` state |
 
 `obs_demo_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
 

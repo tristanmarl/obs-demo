@@ -1,0 +1,45 @@
+# Layered resource attributes. Precedence: global -> activePreset -> team -> workload.
+# Applied per workload as OTEL_RESOURCE_ATTRIBUTES, metadata.dynatrace.com/<key> pod annotations
+# and (OneAgent workloads) DT_CUSTOM_PROP. service.name and service.instance.id are not allowed.
+# Edit here and run `make attributes` (or `make attributes PREVIEW=1`), or edit in the control UI.
+activePreset: ""
+
+global:            # every workload, including the data namespace
+  deployment.environment.name: demo
+  service.namespace: obs-demo
+
+teams:
+  service-monitoring:
+    dt.owner: service-monitoring
+    dt.cost.costcenter: observability-demo
+  data-platform:
+    dt.owner: data-platform
+    dt.cost.costcenter: observability-demo
+
+workloads:
+  control-ui: { team: service-monitoring }
+  gateway-api: { team: service-monitoring }
+  catalog-api: { team: service-monitoring, attributes: { tier: core } }
+  job-api: { team: service-monitoring, attributes: { tier: core } }
+  cache-api: { team: service-monitoring, attributes: { tier: core } }
+  job-worker: { team: service-monitoring, attributes: { tier: core } }
+  result-api: { team: service-monitoring, attributes: { tier: core } }
+  analysis-api: { team: service-monitoring }
+  mock-llm: { team: service-monitoring }
+  aws-lambda-trigger: { team: service-monitoring }
+  azure-functions-trigger: { team: service-monitoring }
+  google-cloud-function-trigger: { team: service-monitoring }
+  grpc-service: { team: service-monitoring, attributes: { tier: core } }
+  load-generator: { team: service-monitoring }
+  cache-exporter: { team: service-monitoring }
+  queue-exporter: { team: service-monitoring }
+  redis: { team: data-platform, attributes: { tier: data } }
+  postgres: { team: data-platform, attributes: { tier: data } }
+  activemq: { team: data-platform, attributes: { tier: data } }
+
+presets:           # named overlays; set activePreset (or pick one in the UI) to merge one over global
+  ownership-demo:
+    dt.owner: platform-engineering
+    dt.cost.product: observability-demo
+  security-context:
+    dt.security_context: demo-restricted

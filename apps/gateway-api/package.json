@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test resource-attrs.test.js"
+    "test": "node --test"
   },
   "dependencies": {
     "fastify": "^5.0.0",
-    "@kubernetes/client-node": "^0.22.0"
+    "@kubernetes/client-node": "^0.22.0",
+    "yaml": "^2.8.0"
   }
 }

@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import k8s from "@kubernetes/client-node";
-import { parseResourceAttrs } from "./resource-attrs.js";
+import { applyDocument, describePlan, loadDocument, planDocument } from "./attributes-store.js";
+import { WORKLOADS, effectiveAll, validateDocument } from "./attributes.js";
 
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT || 8080);
@@ -16,13 +17,6 @@ const DATA_NS = "obs-demo-data";
 const PATCH = { headers: { "Content-Type": "application/strategic-merge-patch+json" } };
 const MERGE = { headers: { "Content-Type": "application/merge-patch+json" } };
 const scenarioDeployments = ["catalog-api", "job-worker", "cache-api", "mock-llm", "grpc-service", "result-api"];
-const contextAppDeployments = [
-  "control-ui", "gateway-api", "catalog-api", "job-api", "cache-api", "job-worker", "result-api",
-  "analysis-api", "mock-llm", "aws-lambda-trigger", "azure-functions-trigger",
-  "google-cloud-function-trigger", "grpc-service", "load-generator",
-  "cache-exporter", "queue-exporter",
-];
-const contextData = [["deployment", "redis"], ["statefulset", "postgres"], ["statefulset", "activemq"]];
 
 const scenarios = [
   { id: "database-latency", label: "Database latency", signal: "PostgreSQL", affectedService: "catalog-api", expectedSymptom: "Catalog requests spend two seconds in PostgreSQL." },
@@ -40,16 +34,18 @@ const kc = new k8s.KubeConfig();
 try { kc.loadFromCluster(); } catch { try { kc.loadFromDefault(); } catch { /* local Docker has no Kubernetes client config */ } }
 let appsApi;
 let customApi;
+let coreApi;
 const cluster = kc.getCurrentCluster();
 if (cluster?.server && !cluster.server.includes("undefined")) {
   try {
     appsApi = kc.makeApiClient(k8s.AppsV1Api);
     customApi = kc.makeApiClient(k8s.CustomObjectsApi);
+    coreApi = kc.makeApiClient(k8s.CoreV1Api);
   } catch { /* mutation routes report that Kubernetes is unavailable */ }
 }
 
 function requireKubernetes() {
-  if (!appsApi || !customApi) throw Object.assign(new Error("Kubernetes API unavailable"), { statusCode: 503 });
+  if (!appsApi || !customApi || !coreApi) throw Object.assign(new Error("Kubernetes API unavailable"), { statusCode: 503 });
 }
 
 function envPatch(containerName, envName, envValue) {
@@ -126,19 +122,6 @@ async function readState() {
   return { activeScenario: active, modes, meshAborted, stateAvailable: true };
 }
 
-async function patchResourceAttrs(attrs) {
-  requireKubernetes();
-  await Promise.all([
-    ...contextAppDeployments.map(name => appsApi.patchNamespacedDeployment(name, NS, envPatch(name, "OTEL_RESOURCE_ATTRIBUTES", attrs), undefined, undefined, undefined, undefined, undefined, PATCH)),
-    ...contextData.map(([kind, name]) => {
-      const patch = envPatch(name, "OTEL_RESOURCE_ATTRIBUTES", attrs);
-      return kind === "deployment"
-        ? appsApi.patchNamespacedDeployment(name, DATA_NS, patch, undefined, undefined, undefined, undefined, undefined, PATCH)
-        : appsApi.patchNamespacedStatefulSet(name, DATA_NS, patch, undefined, undefined, undefined, undefined, undefined, PATCH);
-    }),
-  ]);
-}
-
 async function getJson(url, options = {}) {
   try {
     const response = await fetch(url, { ...options, signal: AbortSignal.timeout(3000) });
@@ -189,17 +172,34 @@ app.post("/api/scenarios/:id", async (request, reply) => {
   try { return await applyScenario(request.params.id); }
   catch (error) { reply.code(error.statusCode || 500); return { error: error.message }; }
 });
-app.get("/api/resource-attrs", async () => ({ attrs: process.env.OTEL_RESOURCE_ATTRIBUTES || "" }));
-app.post("/api/resource-attrs", async (request, reply) => {
-  if (!controlsEnabled) { reply.code(404); return { error: "demo controls are disabled" }; }
+const attributeError = (reply, error) => {
+  reply.code(error.code === "INVALID_RESOURCE_ATTRIBUTES" ? 400 : error.statusCode || 500);
+  return { error: error.message };
+};
+const mutationsDisabled = reply => { reply.code(404); return { error: "demo controls are disabled" }; };
+
+app.get("/api/attributes", async (_request, reply) => {
   try {
-    const parsed = parseResourceAttrs(request.body?.attrs);
-    await patchResourceAttrs(parsed.attrs);
-    return { ok: true, attrs: parsed.attrs };
-  } catch (error) {
-    reply.code(error.code === "INVALID_RESOURCE_ATTRIBUTES" ? 400 : 500);
-    return { error: error.message };
-  }
+    requireKubernetes();
+    const document = await loadDocument(coreApi);
+    return { controlsEnabled, workloads: WORKLOADS, document, activePreset: document.activePreset, effective: effectiveAll(document) };
+  } catch (error) { return attributeError(reply, error); }
+});
+app.post("/api/attributes/preview", async (request, reply) => {
+  if (!controlsEnabled) return mutationsDisabled(reply);
+  try {
+    requireKubernetes();
+    const document = validateDocument(request.body);
+    const plan = await planDocument(appsApi, document);
+    return { document, plan: describePlan(plan), restarting: plan.filter(entry => entry.changed).map(entry => entry.workload) };
+  } catch (error) { return attributeError(reply, error); }
+});
+app.post("/api/attributes/apply", async (request, reply) => {
+  if (!controlsEnabled) return mutationsDisabled(reply);
+  try {
+    requireKubernetes();
+    return await applyDocument(appsApi, coreApi, request.body);
+  } catch (error) { return attributeError(reply, error); }
 });
 
 app.listen({ port, host: "0.0.0.0" });
