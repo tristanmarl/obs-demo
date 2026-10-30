@@ -88,7 +88,7 @@ class CatalogController {
       jdbc.queryForObject("select 1 from pg_sleep(2)", Integer.class);
     }
     List<Map<String, Object>> result = jdbc.queryForList("select id, name, value from catalog_items order by id limit 20");
-    if (flag("allocation-pressure")) memoryPressure.buildCatalogBatch(result);
+    if (flag("memory-pressure")) memoryPressure.buildCatalogBatch(result);
     else memoryPressure.clear();
     return result;
   }

@@ -63,10 +63,6 @@ rules:
       - queue-exporter
       - flagd
     verbs: ["get", "patch"]
-  - apiGroups: ["networking.istio.io"]
-    resources: ["virtualservices"]
-    resourceNames: ["cache-api"]
-    verbs: ["get", "patch"]
   - apiGroups: [""]
     resources: ["configmaps"]
     resourceNames: ["obs-demo-attributes", "obs-demo-flags"]

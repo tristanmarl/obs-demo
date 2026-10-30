@@ -30,10 +30,7 @@ flowchart LR
   gateway -->|"/internal/flags.json"| flagd["flagd"]
   flagd -.->|"OpenFeature flags"| catalog
   flagd -.-> cache
-  flagd -.-> llm
   flagd -.-> worker
-  flagd -.-> grpc
-  flagd -.-> result
   redis -.->|"Prometheus scrape (OneAgent)"| cexp["cache-exporter"]
   postgres -.->|"Prometheus scrape (OTLP)"| qexp["queue-exporter"]
   edge["obs-edge-agent (EC2 host)"] -->|"Istio ingress"| gateway
@@ -70,10 +67,10 @@ Alternatives: `setup.sh` installs Istio, the Dynatrace Operator and the app in o
 
 ## Scenarios
 
-Scenarios are boolean OpenFeature flags served by `flagd`; the control UI, `POST /api/scenarios/{id}` and `make reset` change the flag ConfigMap, so switching is instant and restarts nothing. Services evaluate flags per request, default to stable on any error, and record evaluations on spans where the runtime supports it. `mesh-aborts` is an Istio VirtualService fault. Each card lists where to look in Dynatrace. Runbooks: [docs/demo-scenarios.md](docs/demo-scenarios.md).
+Four scenarios (database latency, queue backlog, error spike, memory pressure) are boolean OpenFeature flags served by `flagd`; the control UI, `POST /api/scenarios/{id}` and `make reset` change the flag ConfigMap, so switching is instant and restarts nothing. Services evaluate flags per request, default to stable on any error, and record evaluations on spans where the runtime supports it. Each card lists where to look in Dynatrace. Runbooks: [docs/demo-scenarios.md](docs/demo-scenarios.md).
 
 ```bash
-make reset    # all flags off, stable VirtualService; works with gateway-api down
+make reset    # all flags off; works with gateway-api down
 ```
 
 Set `DEMO_CONTROLS_ENABLED=false` before exposing the ingress publicly: mutation routes then return 404 and the UI hides the controls. Background load includes an error rate (`LOADGEN_ERROR_RATE`, default `0.05`).
