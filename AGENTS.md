@@ -21,6 +21,7 @@ Builds happen inside Docker:
 make verify
 make build-images
 make k3s-deploy
+make attributes
 make reset
 ```
 

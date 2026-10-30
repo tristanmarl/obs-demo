@@ -9,6 +9,7 @@ make verify
 make build-images
 make k3s-deploy
 make status
+make attributes   # PREVIEW=1 for a diff
 make reset
 ```
 
