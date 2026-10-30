@@ -22,6 +22,10 @@ Optional deployment events: if the Secret `obs-demo-dt-events` (keys `DT_EVENTS_
 
 Kubernetes workload names equal service names. OneAgent annotations and Dynatrace OTLP auto-configuration remain on the workloads that use them.
 
+## Feature flags
+
+Scenarios are OpenFeature boolean flags (`flagd`, gRPC 8013, `FLAGD_HOST=flagd`). Java, Node and Python services register the OpenTelemetry hook of their OpenFeature SDK, which records each evaluation as a `feature_flag` span event on the active span (`feature_flag.key`, `feature_flag.provider.name`, `feature_flag.result.value`, `feature_flag.result.variant`). OneAgent services show these events only where OneAgent picks up OTel API span events, so check per service before relying on them. `cache-api` (Go) has no OTel SDK, so its hook is a no-op unless OneAgent captures OTel API spans. Without a span event, the flag state is still visible in the control UI and in `kubectl -n obs-demo get cm obs-demo-flags -o yaml`.
+
 ## HTTP, database, Redis, and errors
 
 FastAPI, requests, gRPC, PostgreSQL, Redis, and OneAgent instrumentation remain enabled where supported. Custom spans record exceptions and set error status. Proxy routes preserve downstream HTTP status; network timeouts become HTTP 503, not HTTP 200. The worker calls `raise_for_status()` for the result callback.

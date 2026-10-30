@@ -57,3 +57,9 @@ code { color: #8ce5c2; }
 .snippet button { padding: .3rem .7rem; flex: none; }
 .queries summary:focus-visible { outline: 3px solid #f7c873; outline-offset: 2px; }
 @media (max-width: 760px) { .kv-row { grid-template-columns: 1fr; } }
+.look-in { margin-top: .6rem; font-size: .85rem; }
+.look-in summary { cursor: pointer; color: #a6b4c9; font-weight: 700; }
+.look-in summary:focus-visible { outline: 3px solid #f7c873; outline-offset: 2px; }
+.look-in ul { margin: .5rem 0 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
+.look-in .look-links { margin: .5rem 0 0; }
+.look-in a { color: #8ce5c2; }

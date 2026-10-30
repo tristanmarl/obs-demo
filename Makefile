@@ -21,12 +21,12 @@ verify:
 	@bash -n setup.sh scripts/*.sh
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/gateway-api --ignore-scripts && npm test --prefix apps/gateway-api'
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/control-ui --ignore-scripts && npm run build --prefix apps/control-ui'
-	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-api golang:1.23-alpine go test ./
+	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-api golang:1.26-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-exporter golang:1.23-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/host/edge-agent golang:1.26-alpine go test ./
 	@docker build -q --target bin host/edge-agent >/dev/null
 	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -B -m compileall -q /workspace/apps
-	@docker run --rm -v "$(PWD)/apps:/apps" -w /apps python:3.12-slim sh -c 'pip install -q --root-user-action=ignore opentelemetry-sdk==1.35.0 opentelemetry-exporter-otlp-proto-http==1.35.0 >/dev/null 2>&1 && python -B -m unittest test_otel_setup'
+	@docker run --rm -v "$(PWD)/apps:/apps" -w /apps python:3.12-slim sh -c 'pip install -q --root-user-action=ignore opentelemetry-sdk==1.45.2 opentelemetry-exporter-otlp-proto-http==1.45.2 openfeature-sdk==0.10.0 openfeature-provider-flagd==0.6.1 openfeature-hooks-opentelemetry==0.3.1 >/dev/null 2>&1 && python -B -m unittest test_otel_setup test_flags'
 	@docker build -f apps/catalog-api/Dockerfile apps/catalog-api
 	@docker build -f apps/grpc-service/Dockerfile apps
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/obs-demo.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/obs-demo.yaml >/dev/null

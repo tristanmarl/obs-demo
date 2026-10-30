@@ -5,7 +5,7 @@ export const DATA_NS = "obs-demo-data";
 export const WORKLOADS = [
   ...["control-ui", "gateway-api", "catalog-api", "job-api", "cache-api", "job-worker", "result-api",
     "analysis-api", "mock-llm", "aws-lambda-trigger", "azure-functions-trigger",
-    "google-cloud-function-trigger", "grpc-service", "load-generator", "cache-exporter", "queue-exporter",
+    "google-cloud-function-trigger", "grpc-service", "load-generator", "cache-exporter", "queue-exporter", "flagd",
   ].map(name => ({ name, ns: APP_NS, kind: "deployment" })),
   { name: "redis", ns: DATA_NS, kind: "deployment" },
   { name: "postgres", ns: DATA_NS, kind: "statefulset" },

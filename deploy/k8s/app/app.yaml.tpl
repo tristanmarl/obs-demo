@@ -18,6 +18,7 @@ data:
   LLM_URL: http://mock-llm:8080
   RESULT_URL: http://result-api:8080
   GRPC_ADDRESS: grpc-service:50051
+  FLAGD_HOST: flagd
   GATEWAY_URL: http://gateway-api:8080
   SERVICE_VERSION: "${IMAGE_TAG}"
   DEMO_CONTROLS_ENABLED: "${DEMO_CONTROLS_ENABLED}"
@@ -25,6 +26,7 @@ data:
   LOADGEN_BURST: "${LOADGEN_BURST}"
   LOADGEN_ERROR_RATE: "${LOADGEN_ERROR_RATE}"
   FAAS_VERSION: "${FAAS_VERSION}"
+  DT_TENANT_URL: "${DT_TENANT_URL}"
   MEMORY_PRESSURE_MB: "${MEMORY_PRESSURE_MB}"
   MEMORY_SURVIVOR_BATCHES: "${MEMORY_SURVIVOR_BATCHES}"
 ---
@@ -59,6 +61,7 @@ rules:
       - load-generator
       - cache-exporter
       - queue-exporter
+      - flagd
     verbs: ["get", "patch"]
   - apiGroups: ["networking.istio.io"]
     resources: ["virtualservices"]
@@ -66,7 +69,7 @@ rules:
     verbs: ["get", "patch"]
   - apiGroups: [""]
     resources: ["configmaps"]
-    resourceNames: ["obs-demo-attributes"]
+    resourceNames: ["obs-demo-attributes", "obs-demo-flags"]
     verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -239,7 +242,6 @@ spec:
             - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres.obs-demo-data:5432/obs_demo"}
             - {name: SPRING_DATASOURCE_USERNAME, value: obs_demo}
             - {name: SPRING_DATASOURCE_PASSWORD, value: obs_demo}
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}
@@ -333,8 +335,6 @@ spec:
         - name: cache-api
           image: ${IMAGE_REGISTRY}/cache-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          env:
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}
@@ -380,8 +380,6 @@ spec:
       containers:
         - name: job-worker
           image: ${IMAGE_REGISTRY}/job-worker:${IMAGE_TAG}
-          env:
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           resources:
             requests: {cpu: 50m, memory: 96Mi}
@@ -411,8 +409,6 @@ spec:
         - name: result-api
           image: ${IMAGE_REGISTRY}/result-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          env:
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}
@@ -505,8 +501,6 @@ spec:
         - name: mock-llm
           image: ${IMAGE_REGISTRY}/mock-llm:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          env:
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             httpGet: {path: /healthz, port: 8080}
@@ -652,8 +646,6 @@ spec:
         - name: grpc-service
           image: ${IMAGE_REGISTRY}/grpc-service:${IMAGE_TAG}
           ports: [{name: grpc, containerPort: 50051}]
-          env:
-            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
           readinessProbe:
             tcpSocket: {port: 50051}
@@ -794,3 +786,53 @@ spec:
           resources:
             requests: {cpu: 25m, memory: 96Mi}
             limits: {memory: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flagd
+  namespace: obs-demo
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: flagd}}
+  template:
+    metadata:
+      labels: {app: flagd}
+      annotations:
+        metadata.dynatrace.com/service: flagd
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
+    spec:
+      containers:
+        - name: flagd
+          image: ghcr.io/open-feature/flagd:v0.17.1
+          # Polls the gateway-api flag document every 2 s; /internal is not routed by the ingress.
+          args:
+            - start
+            - '--sources=[{"uri":"http://gateway-api:8080/internal/flags.json","provider":"http","interval":2}]'
+          ports:
+            - {name: grpc, containerPort: 8013}
+            - {name: management, containerPort: 8014}
+          readinessProbe:
+            httpGet: {path: /readyz, port: 8014}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8014}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flagd
+  namespace: obs-demo
+spec:
+  selector: {app: flagd}
+  ports: [{name: grpc, port: 8013, targetPort: 8013}]

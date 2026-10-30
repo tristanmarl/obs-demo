@@ -32,6 +32,8 @@ export LOADGEN_BURST="${LOADGEN_BURST:-1}"
 export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
 export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
 export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.05}"
+# The dist manifest never carries tenant values; set DT_TENANT_URL in obs-demo-config at deploy time.
+export DT_TENANT_URL=""
 export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
 export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
 
@@ -60,6 +62,8 @@ YAML
   envsubst < deploy/k8s/app/app.yaml.tpl
   echo "---"
   ./scripts/attributes-configmap.sh
+  echo "---"
+  ./scripts/flags-configmap.sh
   echo "---"
   cat deploy/k8s/istio/istio.yaml
 } > deploy/dist/obs-demo.yaml

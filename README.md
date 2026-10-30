@@ -59,7 +59,7 @@ An optional chain runs on the k3s EC2 host itself: `obs-edge-agent` (systemd) su
 
 ## Controls
 
-Failure scenarios are deterministic and backend-derived. Applying one resets all targets before enabling it. **Resource attributes** are layered (global, preset, team, workload) from `config/attributes.yaml`, editable in the UI or applied with `make attributes` (`make attributes PREVIEW=1` shows the diff first). The gateway validates them and patches only the explicit application/data allowlist, restarting just the workloads whose effective attributes changed. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.
+Failure scenarios are OpenFeature flags served by `flagd`: applying one rewrites the flag ConfigMap (no restarts, instant, resettable with `make reset`), and the active scenario is derived from that store after reload. **Resource attributes** are layered (global, preset, team, workload) from `config/attributes.yaml`, editable in the UI or applied with `make attributes` (`make attributes PREVIEW=1` shows the diff first). The gateway validates them and patches only the explicit application/data allowlist, restarting just the workloads whose effective attributes changed. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.
 
 ```bash
 make reset

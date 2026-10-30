@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import k8s from "@kubernetes/client-node";
 import { applyDocument, describePlan, loadDocument, planDocument } from "./attributes-store.js";
 import { WORKLOADS, effectiveAll, validateDocument } from "./attributes.js";
+import { SCENARIO_FLAGS, deriveScenario, flagDocument, readFlags } from "./flags.js";
 
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT || 8080);
@@ -13,21 +14,21 @@ const urls = {
 };
 const controlsEnabled = process.env.DEMO_CONTROLS_ENABLED !== "false";
 const NS = "obs-demo";
-const DATA_NS = "obs-demo-data";
-const PATCH = { headers: { "Content-Type": "application/strategic-merge-patch+json" } };
 const MERGE = { headers: { "Content-Type": "application/merge-patch+json" } };
-const scenarioDeployments = ["catalog-api", "job-worker", "cache-api", "mock-llm", "grpc-service", "result-api"];
+const FLAGS_CONFIGMAP = "obs-demo-flags";
+const FLAGS_KEY = "flags.json";
+const tenantUrl = /\.invalid\/?$/.test(process.env.DT_TENANT_URL || "") ? "" : (process.env.DT_TENANT_URL || "").replace(/\/+$/, "");
 
 const scenarios = [
-  { id: "database-latency", label: "Database latency", signal: "PostgreSQL", affectedService: "catalog-api", expectedSymptom: "Catalog requests spend two seconds in PostgreSQL." },
-  { id: "queue-backlog", label: "Queue backlog", signal: "ActiveMQ", affectedService: "job-worker", expectedSymptom: "Jobs wait before acknowledgement." },
-  { id: "cache-errors", label: "Cache errors", signal: "HTTP 500 + Redis", affectedService: "cache-api", expectedSymptom: "Cache operations frequently return HTTP 500." },
-  { id: "mesh-aborts", label: "Mesh aborts", signal: "Istio HTTP 503", affectedService: "cache-api", expectedSymptom: "Half of cache requests fail before pod invocation." },
-  { id: "grpc-deadline", label: "gRPC deadline", signal: "gRPC", affectedService: "grpc-service", expectedSymptom: "A unary RPC exceeds the worker deadline." },
-  { id: "ai-latency", label: "AI latency", signal: "GenAI", affectedService: "mock-llm", expectedSymptom: "Analysis waits on a delayed mock model." },
-  { id: "allocation-pressure", label: "Allocation pressure", signal: "Java memory", affectedService: "catalog-api", expectedSymptom: "Catalog allocations and survivors rise within a bounded ceiling." },
-  { id: "host-db-latency", label: "Host DB latency", signal: "MariaDB on EC2 (otel:process)", affectedService: "result-api", expectedSymptom: "Result writes wait two seconds in the host MariaDB process." },
-  { id: "combined-failure", label: "Combined failure", signal: "PostgreSQL + ActiveMQ + Redis", affectedService: "selected services", expectedSymptom: "Three independent distributed-system signals degrade together." },
+  { id: "database-latency", label: "Database latency", signal: "PostgreSQL", affectedService: "catalog-api", expectedSymptom: "Catalog requests spend two seconds in PostgreSQL.", service: "catalog-api", lookIn: [{"text": "Services: catalog-api response time and the PostgreSQL database span", "dql": "fetch spans | filter feature_flag.key == \"database-latency\" | limit 20"}] },
+  { id: "queue-backlog", label: "Queue backlog", signal: "ActiveMQ", affectedService: "job-worker", expectedSymptom: "Jobs wait before acknowledgement.", service: "job-worker", lookIn: [{"text": "ActiveMQ queue depth and job-worker process spans", "dql": "timeseries max(obs_demo_jobs_pending), by: {variant}"}] },
+  { id: "cache-errors", label: "Cache errors", signal: "HTTP 500 + Redis", affectedService: "cache-api", expectedSymptom: "Cache operations frequently return HTTP 500.", service: "cache-api", lookIn: [{"text": "Services: cache-api failure rate", "dql": "fetch spans | filter feature_flag.key == \"cache-errors\" | limit 20"}] },
+  { id: "mesh-aborts", label: "Mesh aborts", signal: "Istio HTTP 503", affectedService: "cache-api", expectedSymptom: "Half of cache requests fail before pod invocation.", service: "cache-api", lookIn: [{"text": "Istio request metrics for cache-api (HTTP 503)", "dql": "timeseries sum(istio_requests_total), by: {response_code}"}] },
+  { id: "grpc-deadline", label: "gRPC deadline", signal: "gRPC", affectedService: "grpc-service", expectedSymptom: "A unary RPC exceeds the worker deadline.", service: "grpc-service", lookIn: [{"text": "job-worker to grpc-service ExecuteJob, DEADLINE_EXCEEDED", "dql": "fetch spans | filter feature_flag.key == \"grpc-deadline\" | limit 20"}] },
+  { id: "ai-latency", label: "AI latency", signal: "GenAI", affectedService: "mock-llm", expectedSymptom: "Analysis waits on a delayed mock model.", service: "mock-llm", lookIn: [{"text": "gen_ai spans of mock-llm", "dql": "fetch spans | filter feature_flag.key == \"ai-latency\" | limit 20"}] },
+  { id: "allocation-pressure", label: "Allocation pressure", signal: "Java memory", affectedService: "catalog-api", expectedSymptom: "Catalog allocations and survivors rise within a bounded ceiling.", service: "catalog-api", lookIn: [{"text": "catalog-api JVM memory and buildCatalogBatch", "dql": "fetch spans | filter feature_flag.key == \"allocation-pressure\" | limit 20"}] },
+  { id: "host-db-latency", label: "Host DB latency", signal: "MariaDB on EC2 (otel:process)", affectedService: "result-api", expectedSymptom: "Result writes wait two seconds in the host MariaDB process.", service: "result-api", lookIn: [{"text": "result-api spans and the mariadbd process on the EC2 host", "dql": "fetch spans | filter feature_flag.key == \"host-db-latency\" | limit 20"}] },
+  { id: "combined-failure", label: "Combined failure", signal: "PostgreSQL + ActiveMQ + Redis", affectedService: "selected services", expectedSymptom: "Three independent distributed-system signals degrade together.", service: "gateway-api", lookIn: [{"text": "Start at gateway-api, then follow catalog, jobs and cache edges", "dql": "fetch spans | filter in(feature_flag.key, array(\"database-latency\", \"queue-backlog\", \"cache-errors\")) | limit 20"}] },
 ];
 
 const kc = new k8s.KubeConfig();
@@ -48,20 +49,16 @@ function requireKubernetes() {
   if (!appsApi || !customApi || !coreApi) throw Object.assign(new Error("Kubernetes API unavailable"), { statusCode: 503 });
 }
 
-function envPatch(containerName, envName, envValue) {
-  return {
-    spec: {
-      template: {
-        metadata: { annotations: { "kubectl.kubernetes.io/restartedAt": new Date().toISOString() } },
-        spec: { containers: [{ name: containerName, env: [{ name: envName, value: envValue }] }] },
-      },
-    },
-  };
+async function readFlagDocument() {
+  requireKubernetes();
+  const result = await coreApi.readNamespacedConfigMap(FLAGS_CONFIGMAP, NS);
+  return JSON.parse(result.body.data?.[FLAGS_KEY] || "{}");
 }
 
-async function patchDeployment(name, value) {
+async function writeFlags(enabled) {
   requireKubernetes();
-  return appsApi.patchNamespacedDeployment(name, NS, envPatch(name, "SCENARIO_MODE", value), undefined, undefined, undefined, undefined, undefined, PATCH);
+  const data = { [FLAGS_KEY]: JSON.stringify(flagDocument(enabled), null, 2) };
+  return coreApi.patchNamespacedConfigMap(FLAGS_CONFIGMAP, NS, { data }, undefined, undefined, undefined, undefined, undefined, MERGE);
 }
 
 async function patchVirtualService(aborted) {
@@ -77,49 +74,28 @@ async function patchVirtualService(aborted) {
 }
 
 async function resetScenarios() {
-  await Promise.all([...scenarioDeployments.map(name => patchDeployment(name, "stable")), patchVirtualService(false)]);
+  await Promise.all([writeFlags([]), patchVirtualService(false)]);
 }
 
 async function applyScenario(id) {
   if (!controlsEnabled) throw Object.assign(new Error("demo controls are disabled"), { statusCode: 404 });
   if (!scenarios.some(scenario => scenario.id === id)) throw Object.assign(new Error(`unknown scenario: ${id}`), { statusCode: 400 });
-  await resetScenarios();
-  const targets = {
-    "database-latency": [["catalog-api", "database-latency"]],
-    "queue-backlog": [["job-worker", "queue-backlog"]],
-    "cache-errors": [["cache-api", "cache-errors"]],
-    "mesh-aborts": [],
-    "grpc-deadline": [["grpc-service", "grpc-deadline"]],
-    "ai-latency": [["mock-llm", "ai-latency"]],
-    "allocation-pressure": [["catalog-api", "allocation-pressure"]],
-    "host-db-latency": [["result-api", "host-db-latency"]],
-    "combined-failure": [["catalog-api", "database-latency"], ["job-worker", "queue-backlog"], ["cache-api", "cache-errors"]],
-  }[id];
-  await Promise.all(targets.map(([name, mode]) => patchDeployment(name, mode)));
-  if (id === "mesh-aborts") await patchVirtualService(true);
+  // Reset and enable in one flag patch; the VirtualService is stable unless the scenario is mesh-aborts.
+  await Promise.all([writeFlags(SCENARIO_FLAGS[id]), patchVirtualService(id === "mesh-aborts")]);
   return { ok: true, scenario: id };
 }
 
 async function readState() {
-  if (!appsApi || !customApi) return { activeScenario: null, modes: {}, meshAborted: false, stateAvailable: false };
-  const modes = {};
-  await Promise.all(scenarioDeployments.map(async name => {
-    try {
-      const result = await appsApi.readNamespacedDeployment(name, NS);
-      const container = result.body.spec.template.spec.containers.find(item => item.name === name);
-      modes[name] = container?.env?.find(item => item.name === "SCENARIO_MODE")?.value || "stable";
-    } catch { modes[name] = "unknown"; }
-  }));
+  if (!appsApi || !customApi || !coreApi) return { activeScenario: null, flags: {}, meshAborted: false, stateAvailable: false };
+  let flags;
+  try { flags = readFlags(await readFlagDocument()); } catch { return { activeScenario: null, flags: {}, meshAborted: false, stateAvailable: false }; }
   let meshAborted = false;
   try {
     const result = await customApi.getNamespacedCustomObject("networking.istio.io", "v1", NS, "virtualservices", "cache-api");
     const fault = result.body.spec?.http?.[0]?.fault?.abort;
     meshAborted = fault?.httpStatus === 503 && fault?.percentage?.value === 50;
   } catch { /* local Docker has no Istio API */ }
-  const combined = modes["catalog-api"] === "database-latency" && modes["job-worker"] === "queue-backlog" && modes["cache-api"] === "cache-errors";
-  const active = meshAborted ? "mesh-aborts" : combined ? "combined-failure"
-    : scenarios.find(scenario => scenario.id !== "combined-failure" && modes[scenario.affectedService] === scenario.id)?.id || null;
-  return { activeScenario: active, modes, meshAborted, stateAvailable: true };
+  return { activeScenario: deriveScenario(flags, meshAborted), flags, meshAborted, stateAvailable: true };
 }
 
 async function getJson(url, options = {}) {
@@ -146,7 +122,11 @@ function jobError(body) {
 }
 
 app.get("/healthz", async () => ({ ok: true, service: "gateway-api" }));
-app.get("/api/status", async () => ({ controlApi: "connected", demoControlsEnabled: controlsEnabled }));
+app.get("/api/status", async () => ({ controlApi: "connected", demoControlsEnabled: controlsEnabled, ...(tenantUrl ? { tenantUrl } : {}) }));
+// flagd polls this over the mesh. The ingress VirtualService routes only /api, so /internal is not reachable from outside.
+app.get("/internal/flags.json", async (_request, reply) => {
+  try { return await readFlagDocument(); } catch (error) { reply.code(503); return { error: error.message }; }
+});
 app.get("/api/catalog", async (request, reply) => proxy(reply, `${urls.catalog}/catalog${request.url.includes("?") ? request.url.slice(request.url.indexOf("?")) : ""}`));
 app.get("/api/catalog/:id", async (request, reply) => proxy(reply, `${urls.catalog}/catalog/${encodeURIComponent(request.params.id)}`));
 app.get("/api/cache", async (request, reply) => proxy(reply, `${urls.cache}/cache${request.url.includes("?") ? request.url.slice(request.url.indexOf("?")) : ""}`));

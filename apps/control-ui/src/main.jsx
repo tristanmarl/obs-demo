@@ -5,6 +5,30 @@ import "./style.css";
 
 const api = "/api";
 
+// Platform apps live on the .apps host of the tenant (heuristic for the usual .live and sprint hostnames).
+const appsBase = tenantUrl => (tenantUrl || "").replace(/\.live\./, ".apps.").replace(/\.sprint\.dynatracelabs/, ".sprint.apps.dynatracelabs");
+
+function LookIn({ scenario, tenantUrl }) {
+  const [copied, setCopied] = useState("");
+  const base = appsBase(tenantUrl);
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); setCopied(text); } catch { setCopied(""); }
+  }
+  if (!scenario.lookIn?.length) return null;
+  return (
+    <details className="look-in">
+      <summary>Look in Dynatrace</summary>
+      {base && <p className="look-links"><a href={`${base}/ui/apps/dynatrace.services`} target="_blank" rel="noreferrer">Services</a> · <a href={`${base}/ui/apps/dynatrace.distributedtracing`} target="_blank" rel="noreferrer">Distributed Tracing</a> (filter <code>{scenario.service}</code>)</p>}
+      <ul>
+        {scenario.lookIn.map(item => <li key={item.dql}>
+          <span>{item.text}</span>
+          <span className="snippet"><code>{item.dql}</code><button type="button" className="secondary" aria-label={`Copy DQL: ${item.dql}`} onClick={() => copy(item.dql)}>{copied === item.dql ? "Copied" : "Copy"}</button></span>
+        </li>)}
+      </ul>
+    </details>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [scenarios, setScenarios] = useState([]);
@@ -129,6 +153,7 @@ function App() {
             <p>{scenario.expectedSymptom}</p>
             <dl><div><dt>Signal</dt><dd>{scenario.signal}</dd></div><div><dt>Target</dt><dd>{scenario.affectedService}</dd></div></dl>
             <button onClick={() => applyScenario(scenario.id)} disabled={pendingScenario !== null}>{pendingScenario === scenario.id ? "Applying…" : "Apply scenario"}</button>
+            <LookIn scenario={scenario} tenantUrl={status?.tenantUrl} />
           </article>)}
         </div>
       </section>}

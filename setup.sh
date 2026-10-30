@@ -162,6 +162,12 @@ fi
 
 step "Waiting for app rollout"
 kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
+# Let the control UI link to the tenant (non-secret); gateway-api reads DT_TENANT_URL from obs-demo-config.
+if [ "$(kubectl -n obs-demo get configmap obs-demo-config -o jsonpath='{.data.DT_TENANT_URL}' 2>/dev/null)" != "$DT_TENANT_URL" ]; then
+  kubectl -n obs-demo patch configmap obs-demo-config --type merge -p "{\"data\":{\"DT_TENANT_URL\":\"${DT_TENANT_URL}\"}}"
+  kubectl -n obs-demo rollout restart deployment/gateway-api
+  kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
+fi
 # Layered resource attributes (config/attributes.yaml) are applied by the gateway; skip when run without the repo.
 if [ -f scripts/apply-attributes.sh ]; then
   ./scripts/apply-attributes.sh || echo "Attributes not applied; run 'make attributes' once gateway-api is ready."

@@ -33,6 +33,7 @@ workloads:
   load-generator: { team: service-monitoring }
   cache-exporter: { team: service-monitoring }
   queue-exporter: { team: service-monitoring }
+  flagd: { team: service-monitoring }
   redis: { team: data-platform, attributes: { tier: data } }
   postgres: { team: data-platform, attributes: { tier: data } }
   activemq: { team: data-platform, attributes: { tier: data } }

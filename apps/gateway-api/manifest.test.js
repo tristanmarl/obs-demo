@@ -9,7 +9,7 @@ const docs = existsSync(path) ? YAML.parseAllDocuments(readFileSync(path, "utf8"
 test("dist manifest is valid YAML and every workload has resource requests", { skip: !docs.length }, () => {
   for (const doc of docs) assert.deepEqual(doc.errors, []);
   const workloads = docs.map(doc => doc.toJS()).filter(item => ["Deployment", "StatefulSet"].includes(item?.kind));
-  assert.ok(workloads.length >= 19);
+  assert.ok(workloads.length >= 20);
   for (const item of workloads) {
     for (const container of item.spec.template.spec.containers) {
       assert.ok(container.resources?.requests?.memory, `${item.metadata.name} needs resource requests`);

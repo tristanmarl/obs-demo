@@ -7,6 +7,7 @@ import time
 import grpc
 import jobs_pb2
 import jobs_pb2_grpc
+import flags
 import otel_setup
 import psycopg
 import requests
@@ -17,6 +18,7 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.trace import SpanKind, Status, StatusCode
 
 otel_setup.setup("job-worker")
+flags.init()
 GrpcInstrumentorClient().instrument()
 RequestsInstrumentor().instrument()
 tracer = trace.get_tracer(__name__)
@@ -80,7 +82,7 @@ def process_job(message, frame):
         span.set_attribute("messaging.operation.type", "process")
         span.set_attribute("messaging.message.id", job_id)
         span.set_attribute("job.id", job_id)
-        if os.getenv("SCENARIO_MODE") == "queue-backlog":
+        if flags.enabled("queue-backlog"):
             time.sleep(3)
 
         outcome = "succeeded"
