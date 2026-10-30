@@ -32,6 +32,7 @@ verify:
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/obs-demo.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/obs-demo.yaml >/dev/null
 	@! grep -nE '\$$\{[^}]+\}' deploy/dist/obs-demo.yaml
 	@$(MAKE) build-images
+	@./scripts/smoke-local-docker.sh
 
 run-local: build-images
 	./scripts/run-local-docker.sh
