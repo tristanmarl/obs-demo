@@ -1,4 +1,4 @@
-package dev.nebulatrace.catalog;
+package dev.traceforge.catalog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

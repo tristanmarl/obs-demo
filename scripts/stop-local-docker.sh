@@ -2,14 +2,14 @@
 set -euo pipefail
 
 for container in \
-  nebulatrace-control-ui nebulatrace-gateway-api nebulatrace-load-generator \
-  nebulatrace-catalog-api nebulatrace-job-api nebulatrace-cache-api nebulatrace-result-api \
-  nebulatrace-analysis-api nebulatrace-mock-llm nebulatrace-job-worker nebulatrace-grpc-service \
-  nebulatrace-aws-lambda-trigger nebulatrace-azure-functions-trigger nebulatrace-google-cloud-function-trigger \
-  nebulatrace-cache-exporter nebulatrace-queue-exporter \
-  nebulatrace-postgres nebulatrace-activemq nebulatrace-redis
+  traceforge-control-ui traceforge-gateway-api traceforge-load-generator \
+  traceforge-catalog-api traceforge-job-api traceforge-cache-api traceforge-result-api \
+  traceforge-analysis-api traceforge-mock-llm traceforge-job-worker traceforge-grpc-service \
+  traceforge-aws-lambda-trigger traceforge-azure-functions-trigger traceforge-google-cloud-function-trigger \
+  traceforge-cache-exporter traceforge-queue-exporter \
+  traceforge-postgres traceforge-activemq traceforge-redis
 do
   docker rm -f "$container" >/dev/null 2>&1 || true
 done
 
-docker network rm nebulatrace >/dev/null 2>&1 || true
+docker network rm traceforge >/dev/null 2>&1 || true

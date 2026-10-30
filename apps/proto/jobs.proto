@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package nebulatrace.jobs;
+package traceforge.jobs;
 
 service JobExecutor {
   rpc ValidateJob(JobRequest) returns (ValidateJobReply);

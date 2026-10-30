@@ -1,8 +1,8 @@
 apiVersion: networking.istio.io/v1
 kind: Gateway
 metadata:
-  name: nebulatrace-gateway
-  namespace: nebulatrace
+  name: traceforge-gateway
+  namespace: traceforge
 spec:
   selector:
     istio: ingressgateway
@@ -18,24 +18,24 @@ apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: control-ui
-  namespace: nebulatrace
+  namespace: traceforge
 spec:
   hosts:
     - "*"
   gateways:
-    - nebulatrace-gateway
+    - traceforge-gateway
   http:
     - match:
         - uri:
             prefix: /api
       route:
         - destination:
-            host: gateway-api.nebulatrace.svc.cluster.local
+            host: gateway-api.traceforge.svc.cluster.local
             port:
               number: 8080
     - route:
         - destination:
-            host: control-ui.nebulatrace.svc.cluster.local
+            host: control-ui.traceforge.svc.cluster.local
             port:
               number: 8080
 ---
@@ -43,9 +43,9 @@ apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: cache-api
-  namespace: nebulatrace
+  namespace: traceforge
 spec:
-  host: cache-api.nebulatrace.svc.cluster.local
+  host: cache-api.traceforge.svc.cluster.local
   subsets:
     - name: stable
       labels:
@@ -58,14 +58,14 @@ apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: cache-api
-  namespace: nebulatrace
+  namespace: traceforge
 spec:
   hosts:
-    - cache-api.nebulatrace.svc.cluster.local
+    - cache-api.traceforge.svc.cluster.local
   http:
     - route:
         - destination:
-            host: cache-api.nebulatrace.svc.cluster.local
+            host: cache-api.traceforge.svc.cluster.local
             subset: stable
             port:
               number: 8080
@@ -73,8 +73,8 @@ spec:
 apiVersion: telemetry.istio.io/v1
 kind: Telemetry
 metadata:
-  name: nebulatrace-default
-  namespace: nebulatrace
+  name: traceforge-default
+  namespace: traceforge
 spec:
   tracing:
     - providers:

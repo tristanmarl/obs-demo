@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-nebulatrace}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-nebulatrace-data}"
+APP_NAMESPACE="${APP_NAMESPACE:-traceforge}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-traceforge-data}"
 
 case "${1:-}" in
   start) replicas=1 ;;

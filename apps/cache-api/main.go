@@ -13,7 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const counterKey = "nebulatrace:demo:counter"
+const counterKey = "traceforge:demo:counter"
 
 func writeJSON(w http.ResponseWriter, status int, body map[string]any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -24,7 +24,7 @@ func writeJSON(w http.ResponseWriter, status int, body map[string]any) {
 func main() {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		redisURL = "redis://redis.nebulatrace-data:6379"
+		redisURL = "redis://redis.traceforge-data:6379"
 	}
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {

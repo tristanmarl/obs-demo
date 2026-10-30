@@ -1,6 +1,6 @@
-# NebulaTrace
+# TraceForge
 
-NebulaTrace is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
+TraceForge is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ flowchart LR
 
 The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits shared telemetry context for a private demo environment. It does not imitate a company or business process.
 
-![NebulaTrace control UI](docs/images/nebulatrace-control-ui.jpg)
+![TraceForge control UI](docs/images/traceforge-control-ui.jpg)
 
 The screenshot shows the live control surface with background load, manual request controls, failure scenarios, and telemetry context editing.
 
@@ -44,7 +44,7 @@ make app-url
 For an existing Istio and Dynatrace Operator installation:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/deploy/dist/nebulatrace.yaml
+kubectl apply -f https://raw.githubusercontent.com/tristanmarl/traceforge/main/deploy/dist/traceforge.yaml
 ```
 
 For a full setup, provide an environment Access Token and run `setup.sh`. The script uses the canonical app manifest and a stable Dynatrace Operator release.
@@ -78,7 +78,7 @@ The target checks shell syntax, resource-attribute validation, Python syntax, Go
 
 ```bash
 make k3s-load-images
-IMAGE_REGISTRY=nebulatrace IMAGE_TAG=dev ./scripts/deploy-demo.sh
-kubectl -n nebulatrace get pods
-kubectl -n nebulatrace-data get pods
+IMAGE_REGISTRY=traceforge IMAGE_TAG=dev ./scripts/deploy-demo.sh
+kubectl -n traceforge get pods
+kubectl -n traceforge-data get pods
 ```

@@ -3,7 +3,7 @@
 node_modules/
 dist/
 !deploy/dist/
-!deploy/dist/nebulatrace.yaml
+!deploy/dist/traceforge.yaml
 target/
 __pycache__/
 *.pyc

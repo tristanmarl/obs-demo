@@ -7,9 +7,9 @@ Istio tracing uses the `dynatrace-otel` extension provider configured by the set
 Inspect the route and provider:
 
 ```bash
-kubectl -n nebulatrace get virtualservice control-ui cache-api -o yaml
-kubectl -n nebulatrace get destinationrule cache-api -o yaml
-istioctl proxy-config listeners deployment/gateway-api.nebulatrace -o json | rg -i 'opentelemetry|telemetry-ingest|dynatrace'
+kubectl -n traceforge get virtualservice control-ui cache-api -o yaml
+kubectl -n traceforge get destinationrule cache-api -o yaml
+istioctl proxy-config listeners deployment/gateway-api.traceforge -o json | rg -i 'opentelemetry|telemetry-ingest|dynatrace'
 ```
 
 The `mesh-aborts` scenario patches only the `cache-api` VirtualService to abort 50% of requests with HTTP 503. `make reset` or `scripts/reset-demo.sh` reapplies the stable route.

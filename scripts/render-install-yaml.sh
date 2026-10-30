@@ -25,9 +25,9 @@ if [ "$USE_ENV" -eq 1 ] && [ -f .env ]; then
   load_env_file .env
 fi
 
-export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/nebulatrace}"
+export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/traceforge}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=traceforge,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
@@ -46,10 +46,10 @@ mkdir -p deploy/dist
 
 {
   cat <<'YAML'
-# NebulaTrace application demo.
+# TraceForge application demo.
 # Prerequisites:
 # - Dynatrace Operator and a healthy DynaKube already installed.
-# - Istio already installed. The nebulatrace namespace enables sidecar injection.
+# - Istio already installed. The traceforge namespace enables sidecar injection.
 # - Public container images under your configured IMAGE_REGISTRY.
 # - A default StorageClass for PostgreSQL and ActiveMQ PVCs.
 YAML
@@ -62,6 +62,6 @@ YAML
   envsubst < deploy/k8s/app/app.yaml.tpl
   echo "---"
   cat deploy/k8s/istio/istio.yaml
-} > deploy/dist/nebulatrace.yaml
+} > deploy/dist/traceforge.yaml
 
-echo "Rendered deploy/dist/nebulatrace.yaml"
+echo "Rendered deploy/dist/traceforge.yaml"

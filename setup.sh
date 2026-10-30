@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# NebulaTrace full setup: Istio + Dynatrace Operator + app
+# TraceForge full setup: Istio + Dynatrace Operator + app
 # Usage:
 #   DT_TENANT_URL=https://abc123.live.dynatrace.com DT_API_TOKEN=dt0c01.xxx bash setup.sh
-#   curl -sL https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
+#   curl -sL https://raw.githubusercontent.com/tristanmarl/traceforge/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
 set -euo pipefail
 
 # ── Config (all overridable via env) ─────────────────────────────────────────
@@ -16,11 +16,11 @@ if [[ "${DT_API_TOKEN}" == dt0s16* ]]; then
 fi
 
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
-export DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
-export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-nebulatrace-demo}"
-export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/nebulatrace}"
+export DYNAKUBE_NAME="${DYNAKUBE_NAME:-traceforge}"
+export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-traceforge-demo}"
+export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/traceforge}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=traceforge,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
@@ -125,7 +125,7 @@ spec:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          nebulatrace.dev/oneagent: "true"
+          traceforge.dev/oneagent: "true"
   activeGate:
     capabilities:
       - kubernetes-monitoring
@@ -141,7 +141,7 @@ spec:
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        nebulatrace.dev/otel: "true"
+        traceforge.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}
@@ -152,18 +152,18 @@ rm -f "$DYNAKUBE_MANIFEST"
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
-step "Deploying NebulaTrace app"
-MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/deploy/dist/nebulatrace.yaml"
-if [ -f "deploy/dist/nebulatrace.yaml" ]; then
+step "Deploying TraceForge app"
+MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/traceforge/main/deploy/dist/traceforge.yaml"
+if [ -f "deploy/dist/traceforge.yaml" ]; then
   # Running from repo checkout — use local copy with env substitution
-  envsubst < deploy/dist/nebulatrace.yaml | kubectl apply -f -
+  envsubst < deploy/dist/traceforge.yaml | kubectl apply -f -
 else
   # Running via curl — fetch and apply the pre-rendered public manifest
   curl -sL "$MANIFEST_URL" | kubectl apply -f -
 fi
 
 step "Waiting for app rollout"
-kubectl -n nebulatrace rollout status deployment/gateway-api --timeout=180s || true
+kubectl -n traceforge rollout status deployment/gateway-api --timeout=180s || true
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 

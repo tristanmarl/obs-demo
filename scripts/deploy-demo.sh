@@ -23,9 +23,9 @@ if [ -f .env ]; then
   load_env_file .env
 fi
 
-export IMAGE_REGISTRY="${IMAGE_REGISTRY:-nebulatrace}"
+export IMAGE_REGISTRY="${IMAGE_REGISTRY:-traceforge}"
 export IMAGE_TAG="${IMAGE_TAG:-dev}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=traceforge,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
@@ -54,5 +54,5 @@ envsubst < deploy/k8s/data/data.yaml | kubectl apply -f -
 envsubst < deploy/k8s/app/app.yaml.tpl | kubectl apply -f -
 kubectl apply -f deploy/k8s/istio/istio.yaml
 
-kubectl -n nebulatrace rollout status deployment/gateway-api --timeout=180s || true
-kubectl -n nebulatrace get pods
+kubectl -n traceforge rollout status deployment/gateway-api --timeout=180s || true
+kubectl -n traceforge get pods

@@ -1,4 +1,4 @@
-package dev.nebulatrace.catalog;
+package dev.traceforge.catalog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

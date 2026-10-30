@@ -30,7 +30,7 @@ spec:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          nebulatrace.dev/oneagent: "true"
+          traceforge.dev/oneagent: "true"
   activeGate:
     capabilities:
       - kubernetes-monitoring
@@ -46,7 +46,7 @@ spec:
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        nebulatrace.dev/otel: "true"
+        traceforge.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}

@@ -2,7 +2,7 @@
 export
 
 KUBECTL ?= kubectl
-IMAGE_REGISTRY ?= nebulatrace
+IMAGE_REGISTRY ?= traceforge
 IMAGE_TAG ?= dev
 
 SERVICES := control-ui gateway-api catalog-api cache-api result-api load-generator cache-exporter
@@ -26,8 +26,8 @@ verify:
 	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -m compileall -q /workspace/apps
 	@docker build -f apps/catalog-api/Dockerfile apps/catalog-api
 	@docker build -f apps/grpc-service/Dockerfile apps
-	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/nebulatrace.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/nebulatrace.yaml >/dev/null
-	@test -z "$$(rg -n '\$$\{[^}]+\}' deploy/dist/nebulatrace.yaml)"
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/traceforge.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/traceforge.yaml >/dev/null
+	@test -z "$$(rg -n '\$$\{[^}]+\}' deploy/dist/traceforge.yaml)"
 	@$(MAKE) build-images
 
 run-local: build-images
@@ -37,20 +37,20 @@ stop-local:
 	./scripts/stop-local-docker.sh
 
 push-images:
-	@test "$(IMAGE_REGISTRY)" != "nebulatrace" || (echo "Set IMAGE_REGISTRY to a registry your cluster can pull from before pushing."; exit 1)
+	@test "$(IMAGE_REGISTRY)" != "traceforge" || (echo "Set IMAGE_REGISTRY to a registry your cluster can pull from before pushing."; exit 1)
 	@for service in $(ALL_SERVICES); do docker push $(IMAGE_REGISTRY)/$$service:$(IMAGE_TAG); done
 
-publish: IMAGE_REGISTRY=ghcr.io/tristanmarl/nebulatrace
+publish: IMAGE_REGISTRY=ghcr.io/tristanmarl/traceforge
 publish: IMAGE_TAG=latest
 publish: build-images push-images
 	./scripts/render-install-yaml.sh --no-env
 
-k3s-load-images: IMAGE_REGISTRY=nebulatrace
+k3s-load-images: IMAGE_REGISTRY=traceforge
 k3s-load-images: IMAGE_TAG=dev
 k3s-load-images: build-images
 	./scripts/k3s-load-images.sh
 
-k3s-deploy: IMAGE_REGISTRY=nebulatrace
+k3s-deploy: IMAGE_REGISTRY=traceforge
 k3s-deploy: IMAGE_TAG=dev
 k3s-deploy: k3s-load-images install-istio deploy
 

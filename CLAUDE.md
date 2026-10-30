@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-NebulaTrace is a Kubernetes workload for exploring observability in a distributed system.
+TraceForge is a Kubernetes workload for exploring observability in a distributed system.
 
 ## Commands
 
@@ -30,9 +30,9 @@ cache-exporter (Go, OneAgent)  -- polls Redis, exposes /metrics (Prometheus scra
 queue-exporter (Python, OTLP)  -- polls PostgreSQL, exposes /metrics (Prometheus scrape, variant=otlp)
 ```
 
-Both exporters are scraped by ActiveGate via Istio's merged endpoint (`15020/stats/prometheus`). Prometheus names use underscores (`nebulatrace_*`); OTel names use dots (`nebulatrace.*`). Run `make enable-prometheus-scraping` for prerequisites.
+Both exporters are scraped by ActiveGate via Istio's merged endpoint (`15020/stats/prometheus`). Prometheus names use underscores (`traceforge_*`); OTel names use dots (`traceforge.*`). Run `make enable-prometheus-scraping` for prerequisites.
 
-Workload names and OTel `service.name` values are identical. `apps/otel_setup.py` adds `service.namespace=nebulatrace`, `deployment.environment.name=demo`, and the `SERVICE_VERSION` value. Do not hardcode OTLP endpoints or tokens.
+Workload names and OTel `service.name` values are identical. `apps/otel_setup.py` adds `service.namespace=traceforge`, `deployment.environment.name=demo`, and the `SERVICE_VERSION` value. Do not hardcode OTLP endpoints or tokens.
 
 ## Trace stitching
 

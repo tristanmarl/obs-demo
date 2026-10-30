@@ -1,7 +1,7 @@
 apiVersion: dynatrace.com/v1beta6
 kind: DynaKube
 metadata:
-  name: nebulatrace
+  name: traceforge
   namespace: dynatrace
   annotations:
     feature.dynatrace.com/automatic-injection: "false"
@@ -12,17 +12,17 @@ spec:
     enabled: true
     namespaceSelector:
       matchExpressions:
-      - key: nebulatrace.dev/oneagent
+      - key: traceforge.dev/oneagent
         operator: Exists
   oneAgent:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          nebulatrace.dev/oneagent: "true"
+          traceforge.dev/oneagent: "true"
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        nebulatrace.dev/otel: "true"
+        traceforge.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}

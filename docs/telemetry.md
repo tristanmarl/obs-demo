@@ -2,7 +2,7 @@
 
 ## Resource identity
 
-`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=nebulatrace`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
+`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=traceforge`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
 
 Kubernetes workload names equal service names. OneAgent annotations and Dynatrace OTLP auto-configuration remain on the workloads that use them.
 
@@ -32,7 +32,7 @@ The analysis path uses `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.
 
 ## Custom metrics
 
-The workload uses `nebulatrace.jobs.*`, `nebulatrace.job.*`, `nebulatrace.worker.*`, `nebulatrace.grpc.duration`, `nebulatrace.cache.*`, `nebulatrace.function.*`, `nebulatrace.analysis.*`, and non-duplicate `nebulatrace.llm.*` metrics. Duration histograms declare unit `s`.
+The workload uses `traceforge.jobs.*`, `traceforge.job.*`, `traceforge.worker.*`, `traceforge.grpc.duration`, `traceforge.cache.*`, `traceforge.function.*`, `traceforge.analysis.*`, and non-duplicate `traceforge.llm.*` metrics. Duration histograms declare unit `s`.
 
 ## Prometheus scraping
 
@@ -45,12 +45,12 @@ prometheus.io/path: /metrics
 metrics.dynatrace.com/scrape: "true"
 metrics.dynatrace.com/port: "15020"
 metrics.dynatrace.com/path: /stats/prometheus
-metrics.dynatrace.com/filter: '{"mode": "include", "names": ["nebulatrace_*"]}'
+metrics.dynatrace.com/filter: '{"mode": "include", "names": ["traceforge_*"]}'
 ```
 
-The filter keeps only `nebulatrace_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
+The filter keeps only `traceforge_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
 
-Prometheus metric names use underscores (`nebulatrace_*`); OTel metric names use dots (`nebulatrace.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
+Prometheus metric names use underscores (`traceforge_*`); OTel metric names use dots (`traceforge.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
 
 ### Metric contract
 
@@ -58,20 +58,20 @@ Both exporters emit identical control metrics for cross-variant comparison:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `nebulatrace_probe_scrapes_total` | counter | `exporter`, `variant` | Incremented on each `/metrics` render |
-| `nebulatrace_probe_value` | gauge | `exporter`, `variant` | Deterministic sawtooth: `epoch % 60` |
-| `nebulatrace_probe_build_info` | gauge | `exporter`, `variant`, `version` | Always 1 |
+| `traceforge_probe_scrapes_total` | counter | `exporter`, `variant` | Incremented on each `/metrics` render |
+| `traceforge_probe_value` | gauge | `exporter`, `variant` | Deterministic sawtooth: `epoch % 60` |
+| `traceforge_probe_build_info` | gauge | `exporter`, `variant`, `version` | Always 1 |
 
 Domain metrics:
 
 | Metric | Type | Labels | Source |
 |---|---|---|---|
-| `nebulatrace_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
-| `nebulatrace_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
-| `nebulatrace_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
-| `nebulatrace_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
+| `traceforge_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
+| `traceforge_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
+| `traceforge_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
+| `traceforge_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
 
-`nebulatrace_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
+`traceforge_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
 
 ### Prerequisites
 

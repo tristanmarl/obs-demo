@@ -3,7 +3,7 @@ set -euo pipefail
 
 kubectl apply -f deploy/k8s/namespaces.yaml
 
-DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
+DYNAKUBE_NAME="${DYNAKUBE_NAME:-traceforge}"
 
 if ! command -v istioctl >/dev/null 2>&1; then
   echo "istioctl is required. Install it from https://istio.io/latest/docs/setup/getting-started/"
@@ -34,4 +34,4 @@ YAML
 
 istioctl install -y -f "$meshconfig"
 rm -f "$meshconfig"
-kubectl label namespace nebulatrace istio-injection=enabled --overwrite
+kubectl label namespace traceforge istio-injection=enabled --overwrite

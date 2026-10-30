@@ -26,27 +26,27 @@ EXPORTER = "queue-exporter"
 VARIANT = "otlp"
 
 probe_scrapes_total = Counter(
-    "nebulatrace_probe_scrapes_total",
+    "traceforge_probe_scrapes_total",
     "Total number of /metrics renders by this exporter.",
     ["exporter", "variant"],
 )
 probe_value = Gauge(
-    "nebulatrace_probe_value",
+    "traceforge_probe_value",
     "Deterministic sawtooth (epoch seconds mod 60) for cross-variant comparison.",
     ["exporter", "variant"],
 )
 probe_build_info = Info(
-    "nebulatrace_probe",
+    "traceforge_probe",
     "Build information.",
     ["exporter", "variant"],
 )
 jobs_gauge = Gauge(
-    "nebulatrace_jobs",
+    "traceforge_jobs",
     "Number of jobs by status.",
     ["status", "variant"],
 )
 jobs_pending = Gauge(
-    "nebulatrace_jobs_pending",
+    "traceforge_jobs_pending",
     "Number of jobs in pending/requested state (queue backlog depth).",
     ["variant"],
 )
@@ -57,7 +57,7 @@ probe_build_info.labels(exporter=EXPORTER, variant=VARIANT).info({"version": ver
 # ── OTel metrics (OTLP path) ──────────────────────────────────────────────────
 
 polls_total = meter.create_counter(
-    "nebulatrace.queue_exporter.polls",
+    "traceforge.queue_exporter.polls",
     description="Number of Postgres poll cycles completed.",
 )
 
@@ -68,7 +68,7 @@ FastAPIInstrumentor.instrument_app(app)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://nebulatrace:nebulatrace@postgres.nebulatrace-data:5432/nebulatrace",
+    "postgresql://traceforge:traceforge@postgres.traceforge-data:5432/traceforge",
 )
 
 

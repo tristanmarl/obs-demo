@@ -11,8 +11,8 @@ const urls = {
   analysis: process.env.ANALYSIS_URL || "http://analysis-api:8080",
 };
 const controlsEnabled = process.env.DEMO_CONTROLS_ENABLED !== "false";
-const NS = "nebulatrace";
-const DATA_NS = "nebulatrace-data";
+const NS = "traceforge";
+const DATA_NS = "traceforge-data";
 const PATCH = { headers: { "Content-Type": "application/strategic-merge-patch+json" } };
 const MERGE = { headers: { "Content-Type": "application/merge-patch+json" } };
 const scenarioDeployments = ["catalog-api", "job-worker", "cache-api", "mock-llm", "grpc-service"];
@@ -70,10 +70,10 @@ async function patchDeployment(name, value) {
 async function patchVirtualService(aborted) {
   requireKubernetes();
   const spec = {
-    hosts: ["cache-api.nebulatrace.svc.cluster.local"],
+    hosts: ["cache-api.traceforge.svc.cluster.local"],
     http: [{
       ...(aborted ? { fault: { abort: { percentage: { value: 50 }, httpStatus: 503 } } } : {}),
-      route: [{ destination: { host: "cache-api.nebulatrace.svc.cluster.local", subset: "stable", port: { number: 8080 } } }],
+      route: [{ destination: { host: "cache-api.traceforge.svc.cluster.local", subset: "stable", port: { number: 8080 } } }],
     }],
   };
   return customApi.patchNamespacedCustomObject("networking.istio.io", "v1", NS, "virtualservices", "cache-api", { spec }, undefined, undefined, undefined, MERGE);

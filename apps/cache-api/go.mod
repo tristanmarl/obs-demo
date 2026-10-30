@@ -1,4 +1,4 @@
-module dev.nebulatrace/cache-api
+module dev.traceforge/cache-api
 
 go 1.23
 
