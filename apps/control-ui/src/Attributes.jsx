@@ -82,18 +82,21 @@ function Queries({ effective }) {
   );
 }
 
-export function Attributes({ setOperation }) {
+export function Attributes() {
   const [workloads, setWorkloads] = useState([]);
   const [editor, setEditor] = useState(null);
   const [effective, setEffective] = useState({});
   const [plan, setPlan] = useState(null);
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState("");
+  const [unavailable, setUnavailable] = useState(false);
+  const [action, setAction] = useState(null);
   const [newTeam, setNewTeam] = useState("");
 
   useEffect(() => {
     fetch(`${api}/attributes`).then(async response => {
-      const body = await response.json();
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 503) { setUnavailable(true); return; }
       if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
       setWorkloads(body.workloads);
       setEditor(toEditor(body.document));
@@ -104,94 +107,110 @@ export function Attributes({ setOperation }) {
   async function post(path, label) {
     setPending(true);
     setProblem("");
-    setOperation(`${label}…`);
+    setAction({ label, ok: true, text: "running…" });
     try {
       const response = await fetch(`${api}/attributes/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(toDocument(editor)) });
       const body = await response.json();
       if (!response.ok) {
         setProblem(body.error || `HTTP ${response.status}`);
-        setOperation(`${label} rejected: HTTP ${response.status}`);
+        setAction({ label, ok: false, text: `${response.status} rejected`, body });
         return;
       }
       setPlan(body);
-      setOperation(path === "apply" ? `Resource attributes applied; ${body.restarting.length} workloads restarting` : `Preview: ${body.restarting.length} workloads would restart`);
+      setAction({ label, ok: true, text: `${response.status} OK`, body });
       if (path === "apply") {
         const fresh = await (await fetch(`${api}/attributes`)).json();
         setEffective(fresh.effective);
       }
     } catch {
-      setOperation(`${label} unavailable`);
+      setAction({ label, ok: false, text: "unavailable" });
     } finally {
       setPending(false);
     }
   }
 
-  if (!editor) return <section className="section"><h2>Resource attributes</h2><p role="status">{problem || "Loading…"}</p></section>;
+  if (unavailable) return <section className="section"><h2>Resource attributes</h2><p className="muted">Needs Kubernetes — available when deployed to the cluster.</p></section>;
+  if (!editor) return <section className="section"><h2>Resource attributes</h2><p className={problem ? "problem" : "muted"} role="status">{problem || "Loading…"}</p></section>;
   const set = patch => { setEditor({ ...editor, ...patch }); setPlan(null); };
   const teams = Object.keys(editor.teams);
   const presets = Object.keys(editor.presets);
   const preset = editor.activePreset;
+  const changed = plan ? plan.plan.filter(entry => entry.changed || entry.error) : [];
 
   return (
     <section className="section" aria-labelledby="attrs-heading">
       <h2 id="attrs-heading">Resource attributes</h2>
-      <p>Precedence: global, then the active preset, then team, then workload. Applying restarts only workloads whose effective attributes changed; disable controls before exposing ingress publicly. Edits here are stored in the cluster; <code>make attributes</code> overwrites them from <code>config/attributes.yaml</code>.</p>
+      <p className="muted">Tags added to telemetry from every workload. Preview shows what restarts; Apply restarts only workloads whose attributes changed.</p>
 
-      <Rows id="global" label="Global (every workload)" rows={editor.global} onChange={rows => set({ global: rows })} disabled={pending} />
+      <Rows id="global" label="Attributes for all workloads" rows={editor.global} onChange={rows => set({ global: rows })} disabled={pending} />
 
-      <div className="kv-block">
-        <label htmlFor="preset">Active preset
-          <select id="preset" value={preset} onChange={event => set({ activePreset: event.target.value })} disabled={pending}>
-            <option value="">None</option>
-            {presets.map(name => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </label>
-        {preset && <Rows id="preset" label={`Preset ${preset}`} rows={editor.presets[preset]} onChange={rows => set({ presets: { ...editor.presets, [preset]: rows } })} disabled={pending} />}
-      </div>
+      <details className="advanced">
+        <summary>Advanced: presets, teams, per-workload</summary>
+        <p className="muted">Precedence: global, then the active preset, then team, then workload. Edits are stored in the cluster; <code>make attributes</code> overwrites them from <code>config/attributes.yaml</code>.</p>
+        <div className="kv-block">
+          <label htmlFor="preset">Active preset
+            <select id="preset" value={preset} onChange={event => set({ activePreset: event.target.value })} disabled={pending}>
+              <option value="">None</option>
+              {presets.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
+          {preset && <Rows id="preset" label={`Preset ${preset}`} rows={editor.presets[preset]} onChange={rows => set({ presets: { ...editor.presets, [preset]: rows } })} disabled={pending} />}
+        </div>
 
-      {teams.map(team => <Rows key={team} id={`team-${team}`} label={`Team ${team}`} rows={editor.teams[team]} onChange={rows => set({ teams: { ...editor.teams, [team]: rows } })} disabled={pending} />)}
-      <div className="context-row">
-        <label className="sr-only" htmlFor="new-team">New team name</label>
-        <input id="new-team" value={newTeam} onChange={event => setNewTeam(event.target.value)} placeholder="new-team-name" disabled={pending} />
-        <button type="button" className="secondary" disabled={pending || !newTeam.trim() || editor.teams[newTeam.trim()]} onClick={() => { set({ teams: { ...editor.teams, [newTeam.trim()]: [] } }); setNewTeam(""); }}>Add team</button>
-      </div>
+        {teams.map(team => <Rows key={team} id={`team-${team}`} label={`Team ${team}`} rows={editor.teams[team]} onChange={rows => set({ teams: { ...editor.teams, [team]: rows } })} disabled={pending} />)}
+        <div className="context-row">
+          <label className="sr-only" htmlFor="new-team">New team name</label>
+          <input id="new-team" value={newTeam} onChange={event => setNewTeam(event.target.value)} placeholder="new-team-name" disabled={pending} />
+          <button type="button" className="secondary" disabled={pending || !newTeam.trim() || editor.teams[newTeam.trim()]} onClick={() => { set({ teams: { ...editor.teams, [newTeam.trim()]: [] } }); setNewTeam(""); }}>Add team</button>
+        </div>
 
-      <table className="workload-table">
-        <caption>Workloads</caption>
-        <thead><tr><th scope="col">Workload</th><th scope="col">Team</th><th scope="col">Extra attributes (key=value, comma separated)</th></tr></thead>
-        <tbody>
-          {workloads.map(({ name }) => {
-            const entry = editor.workloads[name] || { team: "", attrs: "" };
-            const update = patch => set({ workloads: { ...editor.workloads, [name]: { ...entry, ...patch } } });
-            return (
-              <tr key={name}>
-                <th scope="row">{name}</th>
-                <td><select aria-label={`Team for ${name}`} value={entry.team} onChange={event => update({ team: event.target.value })} disabled={pending}><option value="">None</option>{teams.map(team => <option key={team} value={team}>{team}</option>)}</select></td>
-                <td><input aria-label={`Extra attributes for ${name}`} value={entry.attrs} onChange={event => update({ attrs: event.target.value })} placeholder="tier=core" disabled={pending} /></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+        <div className="table-wrap">
+          <table className="workload-table">
+            <caption>Workloads</caption>
+            <thead><tr><th scope="col">Workload</th><th scope="col">Team</th><th scope="col">Extra attributes (key=value, comma separated)</th></tr></thead>
+            <tbody>
+              {workloads.map(({ name }) => {
+                const entry = editor.workloads[name] || { team: "", attrs: "" };
+                const update = patch => set({ workloads: { ...editor.workloads, [name]: { ...entry, ...patch } } });
+                return (
+                  <tr key={name}>
+                    <th scope="row">{name}</th>
+                    <td><select aria-label={`Team for ${name}`} value={entry.team} onChange={event => update({ team: event.target.value })} disabled={pending}><option value="">None</option>{teams.map(team => <option key={team} value={team}>{team}</option>)}</select></td>
+                    <td><input aria-label={`Extra attributes for ${name}`} value={entry.attrs} onChange={event => update({ attrs: event.target.value })} placeholder="tier=core" disabled={pending} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </details>
 
       <div className="action-row">
-        <button type="button" className="secondary" onClick={() => post("preview", "Previewing resource attributes")} disabled={pending}>Preview</button>
-        <button type="button" onClick={() => post("apply", "Applying resource attributes")} disabled={pending}>{pending ? "Working…" : "Apply"}</button>
+        <button type="button" className="secondary" onClick={() => post("preview", "Preview attributes")} disabled={pending}>Preview</button>
+        <button type="button" onClick={() => post("apply", "Apply attributes")} disabled={pending}>{pending ? "Working…" : "Apply"}</button>
       </div>
       {problem && <p className="problem" role="alert">{problem}</p>}
 
       {plan && <div className="plan">
-        <h3>Will restart: {plan.restarting.length} workloads</h3>
-        <ul>
-          {plan.plan.filter(entry => entry.changed || entry.error).map(entry => (
-            <li key={entry.workload}>
-              <strong>{entry.workload}</strong>{entry.error ? <> {entry.error}</> : null}
-              {Object.entries(entry.diff?.added || {}).map(([key, value]) => <div key={`a${key}`}>+ <code>{key}={value}</code></div>)}
-              {Object.entries(entry.diff?.changed || {}).map(([key, [from, to]]) => <div key={`c${key}`}>~ <code>{key}: {from} → {to}</code></div>)}
-              {(entry.diff?.removed || []).map(key => <div key={`r${key}`}>- <code>{key}</code></div>)}
-            </li>
-          ))}
-        </ul>
+        <p><strong>{plan.restarting.length} {plan.restarting.length === 1 ? "workload" : "workloads"} will restart</strong></p>
+        {changed.length > 0 && <details>
+          <summary>Show changes</summary>
+          <ul>
+            {changed.map(entry => (
+              <li key={entry.workload}>
+                <strong>{entry.workload}</strong>{entry.error ? <> {entry.error}</> : null}
+                {Object.entries(entry.diff?.added || {}).map(([key, value]) => <div key={`a${key}`}>+ <code>{key}={value}</code></div>)}
+                {Object.entries(entry.diff?.changed || {}).map(([key, [from, to]]) => <div key={`c${key}`}>~ <code>{key}: {from} → {to}</code></div>)}
+                {(entry.diff?.removed || []).map(key => <div key={`r${key}`}>- <code>{key}</code></div>)}
+              </li>
+            ))}
+          </ul>
+        </details>}
+      </div>}
+
+      {action && <div className="action-status" role="status" aria-live="polite">
+        <p>{action.label} → {action.text}</p>
+        {action.body && <details><summary>Show response</summary><pre>{JSON.stringify(action.body, null, 2)}</pre></details>}
       </div>}
 
       <Queries effective={effective} />

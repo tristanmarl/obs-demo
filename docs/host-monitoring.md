@@ -32,7 +32,6 @@ flowchart LR
 - A trace that starts in a native host process, crosses the Istio ingress and the mesh, and ends with `result-api` writing to the host database.
 - `obs-edge-agent` logs carrying `trace_id`/`span_id`, and journald logs with `process.executable.name` reduced to the executable basename.
 - MariaDB internals (from the mysqld exporter) attached to the `mariadbd` process entity via `process.executable.name=mariadbd`.
-- The `host-db-latency` scenario: `result-api` runs `SELECT SLEEP(2)` before each insert.
 - Manual failure: `sudo systemctl stop mariadb` makes `result-api` return 503, so the worker NACKs and redelivers. `sudo systemctl start mariadb` recovers.
 
 ## Prerequisites

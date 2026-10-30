@@ -187,9 +187,9 @@ def main():
             print(json.dumps({"event": "job-worker.error", "error": str(exc)}), flush=True)
             success = False
         if success:
-            connection.ack(id=ack_id, subscription=SUBSCRIPTION)
+            connection.ack(id=ack_id)
         else:
-            connection.nack(id=ack_id, subscription=SUBSCRIPTION)
+            connection.nack(id=ack_id)
 
 
 if __name__ == "__main__":

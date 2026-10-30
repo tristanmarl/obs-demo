@@ -1,18 +1,13 @@
 // Scenario flags in flagd JSON format. The ConfigMap obs-demo-flags is the source of truth for scenario state.
-export const FLAG_IDS = ["database-latency", "queue-backlog", "cache-errors", "grpc-deadline", "ai-latency", "allocation-pressure", "host-db-latency"];
-
-// Scenario id -> flags it turns on. mesh-aborts is an Istio VirtualService fault, not a flag.
+// Scenario id -> flags it turns on. Exactly one scenario is active at a time.
 export const SCENARIO_FLAGS = {
   "database-latency": ["database-latency"],
   "queue-backlog": ["queue-backlog"],
-  "cache-errors": ["cache-errors"],
-  "mesh-aborts": [],
-  "grpc-deadline": ["grpc-deadline"],
-  "ai-latency": ["ai-latency"],
-  "allocation-pressure": ["allocation-pressure"],
-  "host-db-latency": ["host-db-latency"],
-  "combined-failure": ["database-latency", "queue-backlog", "cache-errors"],
+  "error-spike": ["error-spike"],
+  "memory-pressure": ["memory-pressure"],
 };
+
+export const FLAG_IDS = Object.keys(SCENARIO_FLAGS);
 
 export function flagDocument(enabled = []) {
   const on = new Set(enabled);
@@ -31,10 +26,8 @@ export function readFlags(document) {
   }));
 }
 
-// The scenario whose flag set exactly matches the enabled flags (plus the mesh fault); null when stable or mixed.
-export function deriveScenario(flags, meshAborted) {
+// The scenario whose flag is the single enabled one; null when stable or when several flags are on.
+export function deriveScenario(flags) {
   const enabled = FLAG_IDS.filter(id => flags[id]);
-  if (!enabled.length) return meshAborted ? "mesh-aborts" : null;
-  if (meshAborted) return null;
-  return Object.entries(SCENARIO_FLAGS).find(([, ids]) => ids.length === enabled.length && ids.every(id => flags[id]))?.[0] ?? null;
+  return enabled.length === 1 ? enabled[0] : null;
 }

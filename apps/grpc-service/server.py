@@ -1,18 +1,15 @@
 import re
 import os
-import time
 from concurrent import futures
 
 import grpc
 import jobs_pb2
 import jobs_pb2_grpc
-import flags
 import otel_setup
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
 
 PORT = int(os.getenv("GRPC_PORT", "50051"))
 otel_setup.setup("grpc-service")
-flags.init()
 GrpcInstrumentorServer().instrument()
 
 
@@ -22,8 +19,6 @@ class JobExecutor(jobs_pb2_grpc.JobExecutorServicer):
         return jobs_pb2.ValidateJobReply(accepted=accepted, status="accepted" if accepted else "rejected", message="job input valid" if accepted else "job input invalid")
 
     def ExecuteJob(self, request, context):
-        if flags.enabled("grpc-deadline"):
-            time.sleep(4)  # exceeds the worker's 3 s gRPC deadline
         return jobs_pb2.ExecuteJobReply(healthy=True, status="executed", message="job executed")
 
     def VerifyJob(self, request, context):

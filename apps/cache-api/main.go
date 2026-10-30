@@ -59,7 +59,7 @@ func main() {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "cache-api"})
 	})
 	mux.HandleFunc("/cache", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("force_error") == "true" || (flagEnabled(r.Context(), flags, "cache-errors") && rand.Intn(100) < 70) {
+		if r.URL.Query().Get("force_error") == "true" || (flagEnabled(r.Context(), flags, "error-spike") && rand.Intn(100) < 70) {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cache operation failed"})
 			return
 		}

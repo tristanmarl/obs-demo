@@ -20,10 +20,7 @@ flowchart LR
   gateway -->|"/internal/flags.json"| flagd["flagd"]
   flagd -.->|"OpenFeature gRPC"| catalog
   flagd -.-> cache
-  flagd -.-> llm
   flagd -.-> worker
-  flagd -.-> grpc
-  flagd -.-> result
 
   gateway --> job["job-api"]
   job --> postgres
@@ -42,7 +39,7 @@ flowchart LR
 
 `job-api` validates `{name, workUnits}`, persists a UUID-derived job, and publishes minimal JSON with W3C context in STOMP headers. `job-worker` explicitly receives a frame, creates a `receive jobs.requested` span, then creates a separate `process jobs.requested` span. It calls `ValidateJob`, `ExecuteJob`, and `VerifyJob`, updates PostgreSQL, calls `result-api`, and ACKs only after the required work succeeds.
 
-`flagd` (OpenFeature) polls `gateway-api` for the scenario flag document stored in the ConfigMap `obs-demo-flags`; `catalog-api`, `cache-api`, `result-api`, `job-worker`, `grpc-service` and `mock-llm` evaluate flags per request or job. The ingress routes only `/api`, so `/internal/flags.json` is mesh-internal.
+`flagd` (OpenFeature) polls `gateway-api` for the scenario flag document stored in the ConfigMap `obs-demo-flags`; `catalog-api`, `cache-api` and `job-worker` evaluate flags per request or job. The ingress routes only `/api`, so `/internal/flags.json` is mesh-internal.
 
 `catalog-api` reads PostgreSQL list/detail rows and can add database latency or bounded allocation pressure. `cache-api` reads and increments a real Redis key. The analysis path is optional and calls the local mock model without recording prompt or response bodies. The three provider trigger deployments share one image and submit ordinary jobs through the gateway.
 

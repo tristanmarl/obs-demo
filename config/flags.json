@@ -17,7 +17,7 @@
       },
       "defaultVariant": "off"
     },
-    "cache-errors": {
+    "error-spike": {
       "state": "ENABLED",
       "variants": {
         "on": true,
@@ -25,31 +25,7 @@
       },
       "defaultVariant": "off"
     },
-    "grpc-deadline": {
-      "state": "ENABLED",
-      "variants": {
-        "on": true,
-        "off": false
-      },
-      "defaultVariant": "off"
-    },
-    "ai-latency": {
-      "state": "ENABLED",
-      "variants": {
-        "on": true,
-        "off": false
-      },
-      "defaultVariant": "off"
-    },
-    "allocation-pressure": {
-      "state": "ENABLED",
-      "variants": {
-        "on": true,
-        "off": false
-      },
-      "defaultVariant": "off"
-    },
-    "host-db-latency": {
+    "memory-pressure": {
       "state": "ENABLED",
       "variants": {
         "on": true,

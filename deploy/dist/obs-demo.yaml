@@ -322,10 +322,6 @@ rules:
       - queue-exporter
       - flagd
     verbs: ["get", "patch"]
-  - apiGroups: ["networking.istio.io"]
-    resources: ["virtualservices"]
-    resourceNames: ["cache-api"]
-    verbs: ["get", "patch"]
   - apiGroups: [""]
     resources: ["configmaps"]
     resourceNames: ["obs-demo-attributes", "obs-demo-flags"]
@@ -1176,7 +1172,7 @@ data:
           },
           "defaultVariant": "off"
         },
-        "cache-errors": {
+        "error-spike": {
           "state": "ENABLED",
           "variants": {
             "on": true,
@@ -1184,31 +1180,7 @@ data:
           },
           "defaultVariant": "off"
         },
-        "grpc-deadline": {
-          "state": "ENABLED",
-          "variants": {
-            "on": true,
-            "off": false
-          },
-          "defaultVariant": "off"
-        },
-        "ai-latency": {
-          "state": "ENABLED",
-          "variants": {
-            "on": true,
-            "off": false
-          },
-          "defaultVariant": "off"
-        },
-        "allocation-pressure": {
-          "state": "ENABLED",
-          "variants": {
-            "on": true,
-            "off": false
-          },
-          "defaultVariant": "off"
-        },
-        "host-db-latency": {
+        "memory-pressure": {
           "state": "ENABLED",
           "variants": {
             "on": true,
@@ -1257,37 +1229,6 @@ spec:
     - route:
         - destination:
             host: control-ui.obs-demo.svc.cluster.local
-            port:
-              number: 8080
----
-apiVersion: networking.istio.io/v1
-kind: DestinationRule
-metadata:
-  name: cache-api
-  namespace: obs-demo
-spec:
-  host: cache-api.obs-demo.svc.cluster.local
-  subsets:
-    - name: stable
-      labels:
-        version: stable
-    - name: unstable
-      labels:
-        version: unstable
----
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: cache-api
-  namespace: obs-demo
-spec:
-  hosts:
-    - cache-api.obs-demo.svc.cluster.local
-  http:
-    - route:
-        - destination:
-            host: cache-api.obs-demo.svc.cluster.local
-            subset: stable
             port:
               number: 8080
 ---
