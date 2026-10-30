@@ -9,7 +9,7 @@ SERVICES := control-ui gateway-api catalog-api cache-api result-api load-generat
 SHARED_CTX_SERVICES := job-api job-worker function-trigger analysis-api mock-llm grpc-service queue-exporter
 ALL_SERVICES := $(SERVICES) $(SHARED_CTX_SERVICES)
 
-.PHONY: build-images build test verify run-local stop-local push-images publish k3s-load-images k3s-deploy install-istio install-dynatrace deploy app-url status restart start stop set-owner reset enable-prometheus-scraping
+.PHONY: build-images build test verify run-local stop-local push-images publish k3s-load-images k3s-deploy install-istio install-dynatrace deploy app-url status restart start stop set-owner reset enable-prometheus-scraping host-monitoring
 
 build-images:
 	@for service in $(SERVICES); do docker build -t $(IMAGE_REGISTRY)/$$service:$(IMAGE_TAG) apps/$$service; done
@@ -23,6 +23,8 @@ verify:
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace node:22-alpine sh -lc 'npm ci --prefix apps/control-ui --ignore-scripts && npm run build --prefix apps/control-ui'
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-api golang:1.23-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-exporter golang:1.23-alpine go test ./
+	@docker run --rm -v "$(PWD):/workspace" -w /workspace/host/edge-agent golang:1.26-alpine go test ./
+	@docker build -q --target bin host/edge-agent >/dev/null
 	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -m compileall -q /workspace/apps
 	@docker build -f apps/catalog-api/Dockerfile apps/catalog-api
 	@docker build -f apps/grpc-service/Dockerfile apps
@@ -87,3 +89,6 @@ reset:
 
 enable-prometheus-scraping:
 	./scripts/enable-prometheus-scraping.sh
+
+host-monitoring:
+	sudo ./scripts/install-host-monitoring.sh

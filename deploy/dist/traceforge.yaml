@@ -546,6 +546,8 @@ spec:
         - name: result-api
           image: ghcr.io/tristanmarl/traceforge/result-api:latest
           ports: [{containerPort: 8080}]
+          env:
+            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: traceforge-config}}]
 ---
 apiVersion: v1

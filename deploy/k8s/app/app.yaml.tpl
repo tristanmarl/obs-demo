@@ -312,6 +312,8 @@ spec:
         - name: result-api
           image: ${IMAGE_REGISTRY}/result-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
+          env:
+            - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: traceforge-config}}]
 ---
 apiVersion: v1

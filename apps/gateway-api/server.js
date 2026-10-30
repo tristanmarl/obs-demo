@@ -15,7 +15,7 @@ const NS = "traceforge";
 const DATA_NS = "traceforge-data";
 const PATCH = { headers: { "Content-Type": "application/strategic-merge-patch+json" } };
 const MERGE = { headers: { "Content-Type": "application/merge-patch+json" } };
-const scenarioDeployments = ["catalog-api", "job-worker", "cache-api", "mock-llm", "grpc-service"];
+const scenarioDeployments = ["catalog-api", "job-worker", "cache-api", "mock-llm", "grpc-service", "result-api"];
 const contextAppDeployments = [
   "control-ui", "gateway-api", "catalog-api", "job-api", "cache-api", "job-worker", "result-api",
   "analysis-api", "mock-llm", "aws-lambda-trigger", "azure-functions-trigger",
@@ -32,6 +32,7 @@ const scenarios = [
   { id: "grpc-deadline", label: "gRPC deadline", signal: "gRPC", affectedService: "grpc-service", expectedSymptom: "A unary RPC exceeds the worker deadline." },
   { id: "ai-latency", label: "AI latency", signal: "GenAI", affectedService: "mock-llm", expectedSymptom: "Analysis waits on a delayed mock model." },
   { id: "allocation-pressure", label: "Allocation pressure", signal: "Java memory", affectedService: "catalog-api", expectedSymptom: "Catalog allocations and survivors rise within a bounded ceiling." },
+  { id: "host-db-latency", label: "Host DB latency", signal: "MariaDB on EC2 (otel:process)", affectedService: "result-api", expectedSymptom: "Result writes wait two seconds in the host MariaDB process." },
   { id: "combined-failure", label: "Combined failure", signal: "PostgreSQL + ActiveMQ + Redis", affectedService: "selected services", expectedSymptom: "Three independent distributed-system signals degrade together." },
 ];
 
@@ -95,6 +96,7 @@ async function applyScenario(id) {
     "grpc-deadline": [["grpc-service", "grpc-deadline"]],
     "ai-latency": [["mock-llm", "ai-latency"]],
     "allocation-pressure": [["catalog-api", "allocation-pressure"]],
+    "host-db-latency": [["result-api", "host-db-latency"]],
     "combined-failure": [["catalog-api", "database-latency"], ["job-worker", "queue-backlog"], ["cache-api", "cache-errors"]],
   }[id];
   await Promise.all(targets.map(([name, mode]) => patchDeployment(name, mode)));

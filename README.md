@@ -53,6 +53,10 @@ For a full setup, provide an environment Access Token and run `setup.sh`. The sc
 
 `cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by the Dynatrace ActiveGate. Both emit identical control metrics so the two Dynatrace ingest paths can be compared in a single DQL query by `variant`. See `docs/telemetry.md` for the metric contract and `make enable-prometheus-scraping` for the two prerequisites.
 
+## Host monitoring
+
+An optional chain runs on the k3s EC2 host itself: `tf-edge-agent` (systemd) submits jobs through the Istio ingress, `result-api` writes to a MariaDB on the host, and a Dynatrace OTel Collector reports `otel:host` and `otel:process` entities. Run `make host-monitoring` on the host; see `docs/host-monitoring.md`.
+
 ## Controls
 
 Failure scenarios are deterministic and backend-derived. Applying one resets all targets before enabling it. **Demo telemetry context** validates and patches only the explicit application/data allowlist, then restarts those workloads. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.

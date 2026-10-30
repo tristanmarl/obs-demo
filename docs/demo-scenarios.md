@@ -65,6 +65,15 @@ Apply scenarios from the control UI or `POST /api/scenarios/{id}`. The gateway r
 5. Reset: reset scenarios, then request the catalog once; the stable request clears retained batches.
 6. Stable confirmation: the bounded state is empty after reset/stable traffic and memory recovers.
 
+## host-db-latency
+
+1. Trigger: apply **Host DB latency** (requires `make host-monitoring`, see `docs/host-monitoring.md`), then submit jobs.
+2. Expected behavior: `result-api` runs `SELECT SLEEP(2)` against the MariaDB on the EC2 host before each insert.
+3. Evidence: `result-api` spans lengthen, jobs complete about two seconds later, and MariaDB process metrics on the `mariadbd` `otel:process` entity show the extra activity.
+4. Dynatrace entry: open a `tf-edge-agent` trace and follow it to `result-api`, then open the `mariadbd` process entity.
+5. Reset: `POST /api/scenarios/reset` or `make reset`.
+6. Stable confirmation: result writes return to baseline and reload reports no active scenario.
+
 ## combined-failure
 
 1. Trigger: apply **Combined failure**.

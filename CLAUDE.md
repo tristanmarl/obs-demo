@@ -26,6 +26,8 @@ gateway-api -> cache-api -> Redis
 gateway-api -> analysis-api -> mock-llm
 gateway-api -> job-api -> PostgreSQL -> ActiveMQ jobs.requested
 job-worker -> grpc-service (ValidateJob, ExecuteJob, VerifyJob) -> result-api
+tf-edge-agent (EC2, systemd) -> istio ingress -> gateway-api
+result-api -> host-db (MariaDB on EC2)
 cache-exporter (Go, OneAgent)  -- polls Redis, exposes /metrics (Prometheus scrape, variant=oneagent)
 queue-exporter (Python, OTLP)  -- polls PostgreSQL, exposes /metrics (Prometheus scrape, variant=otlp)
 ```
