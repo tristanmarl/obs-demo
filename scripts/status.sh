@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-nebulatrace}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-nebulatrace-data}"
-DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
+APP_NAMESPACE="${APP_NAMESPACE:-obs-demo}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-obs-demo-data}"
+DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
 
 echo "Context: $(kubectl config current-context 2>/dev/null || echo unknown)"
 echo

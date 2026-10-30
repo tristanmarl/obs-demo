@@ -1,0 +1,18 @@
+[Unit]
+Description=Observability Demo edge agent
+After=obs-demo-otel-collector.service network-online.target
+Wants=obs-demo-otel-collector.service network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/obs-edge-agent
+EnvironmentFile=-/etc/obs-demo/edge-agent.env
+DynamicUser=yes
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

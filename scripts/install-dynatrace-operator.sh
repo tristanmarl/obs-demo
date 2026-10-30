@@ -25,8 +25,8 @@ if [[ "${DT_API_TOKEN:-}" == dt0s16* ]]; then
 fi
 
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
-export DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
-export DT_HOST_GROUP="${DT_HOST_GROUP:-nebulatrace}"
+export DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
+export DT_HOST_GROUP="${DT_HOST_GROUP:-obs-demo}"
 
 DT_API_URL="${DT_TENANT_URL%/}"
 DT_API_URL="${DT_API_URL/.apps./.}"

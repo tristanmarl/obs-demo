@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-nebulatrace}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-nebulatrace-data}"
+APP_NAMESPACE="${APP_NAMESPACE:-obs-demo}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-obs-demo-data}"
 
 restart_kind() {
   local namespace="$1"

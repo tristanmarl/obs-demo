@@ -1,5 +1,10 @@
-package dev.nebulatrace.catalog;
+package dev.obsdemo.catalog;
 
+import dev.openfeature.contrib.hooks.otel.TracesHook;
+import dev.openfeature.contrib.providers.flagd.FlagdOptions;
+import dev.openfeature.contrib.providers.flagd.FlagdProvider;
+import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -58,18 +63,32 @@ class CatalogController {
   private final CatalogMemoryPressure memoryPressure = new CatalogMemoryPressure(
       boundedEnv("MEMORY_PRESSURE_MB", 4, 1, 32), boundedEnv("MEMORY_SURVIVOR_BATCHES", 8, 1, 16));
 
+  private final Client flags = featureFlags();
+
   CatalogController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+
+  // Scenario flags come from flagd; any evaluation error falls back to false (stable behavior).
+  private static Client featureFlags() {
+    OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProvider(new FlagdProvider(FlagdOptions.builder().host(System.getenv().getOrDefault("FLAGD_HOST", "flagd")).port(8013).build()));
+    api.addHooks(new TracesHook());
+    return api.getClient("catalog-api");
+  }
+
+  private boolean flag(String key) {
+    try { return flags.getBooleanValue(key, false); } catch (RuntimeException ignored) { return false; }
+  }
 
   @GetMapping("/healthz")
   Map<String, Object> health() { return Map.of("ok", true, "service", "catalog-api"); }
 
   @GetMapping("/catalog")
   List<Map<String, Object>> list() {
-    if ("database-latency".equals(System.getenv().getOrDefault("SCENARIO_MODE", "stable"))) {
+    if (flag("database-latency")) {
       jdbc.queryForObject("select 1 from pg_sleep(2)", Integer.class);
     }
     List<Map<String, Object>> result = jdbc.queryForList("select id, name, value from catalog_items order by id limit 20");
-    if ("allocation-pressure".equals(System.getenv().getOrDefault("SCENARIO_MODE", "stable"))) memoryPressure.buildCatalogBatch(result);
+    if (flag("allocation-pressure")) memoryPressure.buildCatalogBatch(result);
     else memoryPressure.clear();
     return result;
   }

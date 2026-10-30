@@ -1,19 +1,42 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Attributes } from "./Attributes.jsx";
 import "./style.css";
 
 const api = "/api";
+
+// Platform apps live on the .apps host of the tenant (heuristic for the usual .live and sprint hostnames).
+const appsBase = tenantUrl => (tenantUrl || "").replace(/\.live\./, ".apps.").replace(/\.sprint\.dynatracelabs/, ".sprint.apps.dynatracelabs");
+
+function LookIn({ scenario, tenantUrl }) {
+  const [copied, setCopied] = useState("");
+  const base = appsBase(tenantUrl);
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); setCopied(text); } catch { setCopied(""); }
+  }
+  if (!scenario.lookIn?.length) return null;
+  return (
+    <details className="look-in">
+      <summary>Look in Dynatrace</summary>
+      {base && <p className="look-links"><a href={`${base}/ui/apps/dynatrace.services`} target="_blank" rel="noreferrer">Services</a> · <a href={`${base}/ui/apps/dynatrace.distributedtracing`} target="_blank" rel="noreferrer">Distributed Tracing</a> (filter <code>{scenario.service}</code>)</p>}
+      <ul>
+        {scenario.lookIn.map(item => <li key={item.dql}>
+          <span>{item.text}</span>
+          <span className="snippet"><code>{item.dql}</code><button type="button" className="secondary" aria-label={`Copy DQL: ${item.dql}`} onClick={() => copy(item.dql)}>{copied === item.dql ? "Copied" : "Copy"}</button></span>
+        </li>)}
+      </ul>
+    </details>
+  );
+}
 
 function App() {
   const [status, setStatus] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
   const [controlsEnabled, setControlsEnabled] = useState(true);
-  const [attrs, setAttrs] = useState("");
   const [result, setResult] = useState(null);
   const [operation, setOperation] = useState("");
   const [pendingScenario, setPendingScenario] = useState(null);
-  const [attrsPending, setAttrsPending] = useState(false);
   const [job, setJob] = useState({ name: "demo-job", workUnits: 10 });
 
   async function callApi(path, options = {}) {
@@ -43,7 +66,6 @@ function App() {
       if (!response.ok) throw new Error("offline");
       return response.json();
     }).then(setStatus).catch(() => setStatus({ error: "offline" }));
-    fetch(`${api}/resource-attrs`).then(response => response.json()).then(body => setAttrs(body.attrs || "")).catch(() => {});
     refreshScenarios();
   }, []);
 
@@ -92,27 +114,12 @@ function App() {
     }
   }
 
-  async function applyAttrs() {
-    setAttrsPending(true);
-    setOperation("Applying telemetry context and restarting workloads…");
-    try {
-      const { response } = await callApi("/resource-attrs", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attrs }),
-      });
-      setOperation(response.ok ? "Telemetry context applied" : `Telemetry context rejected: HTTP ${response.status}`);
-    } catch {
-      setOperation("Telemetry context unavailable");
-    } finally {
-      setAttrsPending(false);
-    }
-  }
-
   const apiAvailable = status?.controlApi === "connected";
   const controls = controlsEnabled && apiAvailable;
   return (
     <main>
       <header className="header">
-        <p className="eyebrow">NebulaTrace</p>
+        <p className="eyebrow">Observability Demo</p>
         <h1>Distributed systems observability lab</h1>
         <p className="subtitle">Generate connected HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, FaaS, AI, and memory signals.</p>
         <div className={`status-bar ${!apiAvailable ? "status-bar--offline" : ""}`} role="status">
@@ -146,15 +153,12 @@ function App() {
             <p>{scenario.expectedSymptom}</p>
             <dl><div><dt>Signal</dt><dd>{scenario.signal}</dd></div><div><dt>Target</dt><dd>{scenario.affectedService}</dd></div></dl>
             <button onClick={() => applyScenario(scenario.id)} disabled={pendingScenario !== null}>{pendingScenario === scenario.id ? "Applying…" : "Apply scenario"}</button>
+            <LookIn scenario={scenario} tenantUrl={status?.tenantUrl} />
           </article>)}
         </div>
       </section>}
 
-      {controls && <section className="section">
-        <h2>Demo telemetry context</h2>
-        <p>Comma-separated <code>key=value</code> attributes. Applying context restarts application and data workloads; disable controls before exposing ingress publicly.</p>
-        <div className="context-row"><label className="sr-only" htmlFor="attrs">Telemetry resource attributes</label><input id="attrs" value={attrs} onChange={event => setAttrs(event.target.value)} placeholder="team=observability,region=demo" disabled={attrsPending} /><button onClick={applyAttrs} disabled={attrsPending || !attrs.trim()}>{attrsPending ? "Applying…" : "Apply & restart"}</button></div>
-      </section>}
+      {controls && <Attributes setOperation={setOperation} />}
 
       <p className="operation" aria-live="polite">{operation}</p>
       {result && <section className="result section"><h2>Live API output</h2><p>{result.path} · HTTP {result.status}</p><pre>{JSON.stringify(result.body, null, 2)}</pre></section>}

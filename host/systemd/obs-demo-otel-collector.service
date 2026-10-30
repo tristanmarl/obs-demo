@@ -1,0 +1,14 @@
+[Unit]
+Description=Observability Demo Dynatrace OpenTelemetry Collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Runs as root: journald access and process.disk.io need it.
+ExecStart=/usr/local/bin/dynatrace-otel-collector --config=/etc/obs-demo/otel-collector.yaml
+EnvironmentFile=/etc/obs-demo/otel-collector.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

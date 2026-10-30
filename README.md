@@ -1,6 +1,13 @@
-# NebulaTrace
+# Observability Demo
 
-NebulaTrace is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
+A small Kubernetes workload for exploring observability in a distributed system on a single EC2 k3s host. It generates connected HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, simulated FaaS, GenAI, service-map and JVM-memory signals, and shows four ingest paths side by side:
+
+- **OneAgent** (Dynatrace Operator injection) on Java, Go, Node and nginx workloads
+- **OpenTelemetry** over OTLP (automatic exporter configuration) on the Python workloads
+- **Prometheus metrics scraped by ActiveGate** through Istio's merged endpoint (`cache-exporter` via OneAgent, `queue-exporter` via OTLP)
+- **Istio** sidecar traces and request metrics, plus an optional **EC2 host chain** (OTel Collector, host MariaDB, `obs-edge-agent`) for `otel:host` and `otel:process` entities
+
+It does not imitate a company or business process. Controls are for a private demo; there is no production authentication.
 
 ## Architecture
 
@@ -20,53 +27,68 @@ flowchart LR
   broker --> worker["job-worker"]
   worker -->|"ValidateJob / ExecuteJob / VerifyJob"| grpc["grpc-service"]
   worker --> result["result-api"]
+  gateway -->|"/internal/flags.json"| flagd["flagd"]
+  flagd -.->|"OpenFeature flags"| catalog
+  flagd -.-> cache
+  flagd -.-> llm
+  flagd -.-> worker
+  flagd -.-> grpc
+  flagd -.-> result
   redis -.->|"Prometheus scrape (OneAgent)"| cexp["cache-exporter"]
   postgres -.->|"Prometheus scrape (OTLP)"| qexp["queue-exporter"]
+  edge["obs-edge-agent (EC2 host)"] -->|"Istio ingress"| gateway
+  result -->|"host-db"| hostdb[("MariaDB (EC2 host)")]
+  hcol["OTel Collector (EC2 host)"] -.-> hostdb
 ```
 
-The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits shared telemetry context for a private demo environment. It does not imitate a company or business process.
+More detail: [docs/architecture.md](docs/architecture.md), [docs/telemetry.md](docs/telemetry.md), [docs/istio-unified-services.md](docs/istio-unified-services.md).
 
-![NebulaTrace control UI](docs/images/nebulatrace-control-ui.jpg)
+![Observability Demo control UI](docs/images/obs-demo-control-ui.jpg)
 
-The screenshot shows the live control surface with background load, manual request controls, failure scenarios, and telemetry context editing.
+*The screenshot predates the rename and the resource-attributes and scenario-card changes; the layout is otherwise representative.*
 
-## Run it
+## Quick start (single EC2 k3s host)
 
-Prerequisites: Docker, `kubectl`, `helm`, `istioctl`, and `envsubst`. Builds and tests run in containers; local Node, Go, Java, and Python packages are not required.
+Prerequisites: Docker, `kubectl`, `istioctl`, `envsubst` (gettext-base) and `helm`. Builds and tests run in containers; no host Node, Go, Java or Python packages are needed.
 
 ```bash
-cp .env.example .env
-make verify
-make k3s-deploy
-make app-url
+cp .env.example .env     # set DT_TENANT_URL, DT_API_TOKEN (environment access token)
+make verify              # tests, image builds, manifest render check
+make k3s-deploy          # build, load into k3s, install Istio, deploy
+make install-dynatrace   # Dynatrace Operator + DynaKube, if not installed yet
+make app-url             # Istio ingress
 ```
 
-For an existing Istio and Dynatrace Operator installation:
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/deploy/dist/nebulatrace.yaml
-```
-
-For a full setup, provide an environment Access Token and run `setup.sh`. The script uses the canonical app manifest and a stable Dynatrace Operator release.
-
-## Prometheus scraping
-
-`cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by the Dynatrace ActiveGate. Both emit identical control metrics so the two Dynatrace ingest paths can be compared in a single DQL query by `variant`. See `docs/telemetry.md` for the metric contract and `make enable-prometheus-scraping` for the two prerequisites.
-
-## Controls
-
-Failure scenarios are deterministic and backend-derived. Applying one resets all targets before enabling it. **Demo telemetry context** validates and patches only the explicit application/data allowlist, then restarts those workloads. Set `DEMO_CONTROLS_ENABLED=false` before exposing ingress publicly; these private-demo controls intentionally have no production authentication.
-
-```bash
-make reset
-./scripts/reset-demo.sh
-```
-
-Normal load includes a configurable background error rate (`LOADGEN_ERROR_RATE`, default `0.05`). Failures rotate through cache 500s, missing catalog items, and invalid jobs; targeted scenarios remain available for dependency and infrastructure failures.
+Alternatives: `setup.sh` installs Istio, the Dynatrace Operator and the app in one go; for an existing Istio and Operator install, `kubectl apply -f https://raw.githubusercontent.com/tristanmarl/obs-demo/main/deploy/dist/obs-demo.yaml` and then `make attributes`.
 
 ## Configuration
 
-Important defaults are in `.env.example`: `LOADGEN_DELAY_MS`, `LOADGEN_ERROR_RATE`, `MEMORY_PRESSURE_MB`, `MEMORY_SURVIVOR_BATCHES`, `FAAS_VERSION`, and `DEMO_CONTROLS_ENABLED`. The Java allocation scenario accepts 1–32 MB per batch and retains at most 1–16 batches.
+- **Resource attributes** live in `config/attributes.yaml` as layers: `global`, `presets` (one active), `teams`, `workloads`; precedence is global, preset, team, workload. Edit the file and run `make attributes` (`make attributes PREVIEW=1` shows the per-workload diff first) or edit them in the control UI. Only workloads whose effective set changed are patched (and restarted): `OTEL_RESOURCE_ATTRIBUTES`, `metadata.dynatrace.com/<key>` pod annotations and, for OneAgent workloads, `DT_CUSTOM_PROP`. Details and Dynatrace caveats: [docs/telemetry.md](docs/telemetry.md).
+- **`.env`** (see `.env.example`): `DT_TENANT_URL`, `DT_API_TOKEN`, `DT_DATA_INGEST_TOKEN`, `DT_OTEL_INGEST_TOKEN` (host collector), `K8S_CLUSTER_NAME`, `DYNAKUBE_NAME`, image registry/tag, load-generator and memory-pressure settings, `DEMO_CONTROLS_ENABLED`, and optional `HOST_DB_IP` / `INGRESS_URL`. Optional Adaptive Traffic Management sampler for Istio: `DT_PLATFORM_TOKEN` (scope `adaptive-traffic-management:sampling-configuration:read`), `DT_TENANT_ID`, `DT_CLUSTER_ID`; all three must be set, and the token is then stored in the Istio mesh config.
+- **Optional deployment events**: a Secret `obs-demo-dt-events` with `DT_EVENTS_URL` and `DT_EVENTS_TOKEN` makes attribute applies post `CUSTOM_DEPLOYMENT` events.
+- Never commit `.env`, tokens, tenant URLs or kubeconfigs.
+
+## Scenarios
+
+Scenarios are boolean OpenFeature flags served by `flagd`; the control UI, `POST /api/scenarios/{id}` and `make reset` change the flag ConfigMap, so switching is instant and restarts nothing. Services evaluate flags per request, default to stable on any error, and record evaluations on spans where the runtime supports it. `mesh-aborts` is an Istio VirtualService fault. Each card lists where to look in Dynatrace. Runbooks: [docs/demo-scenarios.md](docs/demo-scenarios.md).
+
+```bash
+make reset    # all flags off, stable VirtualService; works with gateway-api down
+```
+
+Set `DEMO_CONTROLS_ENABLED=false` before exposing the ingress publicly: mutation routes then return 404 and the UI hides the controls. Background load includes an error rate (`LOADGEN_ERROR_RATE`, default `0.05`).
+
+## Host monitoring (optional)
+
+`make host-monitoring` on the k3s EC2 host installs MariaDB, a Dynatrace OTel Collector and the `obs-edge-agent` systemd unit. A trace then starts in a host process, crosses the Istio ingress and ends with `result-api` writing to the host database, and `otel:host` / `otel:process` entities appear. See [docs/host-monitoring.md](docs/host-monitoring.md).
+
+## Dynatrace prerequisites
+
+- Dynatrace Operator with a DynaKube (`make install-dynatrace`); application monitoring with OneAgent injection and OTLP exporter auto-configuration.
+- Tenant: enable **Monitor annotated Prometheus exporters** (Kubernetes settings) and an in-cluster ActiveGate with `kubernetes-monitoring`; `make enable-prometheus-scraping` checks the rest.
+- Tenant: review the **Monitor Envoy** toggle so Envoy is not monitored twice (pods opt the sidecar out of injection with `container.inject.dynatrace.com/istio-proxy: "false"`).
+- Host chain: the **OpenTelemetry Host Monitoring** extension from Hub and a token with `metrics.ingest`, `logs.ingest`, `openTelemetryTrace.ingest`.
+- The environment access token for `DT_API_TOKEN` needs `DataExport`, `activeGateTokenManagement.create` and `InstallerDownload` (see `scripts/apply-dynakube.sh`); the optional Istio sampler needs the platform token scope above.
 
 ## Verification
 
@@ -74,11 +96,13 @@ Important defaults are in `.env.example`: `LOADGEN_DELAY_MS`, `LOADGEN_ERROR_RAT
 make verify
 ```
 
-The target checks shell syntax, resource-attribute validation, Python syntax, Go tests, the UI build, the bounded Java test, the gRPC contract check, every service image, stale vocabulary/secrets, and reproducible manifest rendering with no unresolved placeholders. When a cluster is available:
+Checks shell syntax, gateway tests (attribute layering and validation, flag state, manifest sanity), the UI build, Go tests, Python syntax and unit tests (resource precedence, flag evaluation), the Java test, the gRPC contract test, every service image, and that `deploy/dist/obs-demo.yaml` renders reproducibly without unresolved placeholders. With a cluster: `make status`, then `kubectl -n obs-demo get pods`.
 
-```bash
-make k3s-load-images
-IMAGE_REGISTRY=nebulatrace IMAGE_TAG=dev ./scripts/deploy-demo.sh
-kubectl -n nebulatrace get pods
-kubectl -n nebulatrace-data get pods
-```
+## Limitations
+
+- Nothing here was verified against a live tenant by the test suite: enrichment of non-`dt.*` annotation keys, `DT_CUSTOM_PROP`, the Istio sampler and metric filter, and `feature_flag` span events depend on your Dynatrace setup.
+- `cache-api` (Go) has no OTel SDK, so its flag hook only records when OneAgent supplies a span.
+- One host only: every container has resource requests (about 735m CPU and 2 GiB memory in total, excluding Istio sidecars, Dynatrace components and k3s itself) and memory limits, with no HA.
+- Controls have no authentication; re-applying the dist manifest resets scenario flags and attribute layers to the seeded defaults.
+- The Python services that use OpenFeature run OpenTelemetry 1.45 while the others stay on 1.35, because the flagd provider requires newer protobuf.
+- MariaDB emits no spans, so the host database link in Dynatrace is by timing and context rather than a drawn edge.

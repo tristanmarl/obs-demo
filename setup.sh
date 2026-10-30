@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# NebulaTrace full setup: Istio + Dynatrace Operator + app
+# Observability Demo full setup: Istio + Dynatrace Operator + app
 # Usage:
 #   DT_TENANT_URL=https://abc123.live.dynatrace.com DT_API_TOKEN=dt0c01.xxx bash setup.sh
-#   curl -sL https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
+#   curl -sL https://raw.githubusercontent.com/tristanmarl/obs-demo/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
 set -euo pipefail
 
 # ── Config (all overridable via env) ─────────────────────────────────────────
@@ -16,17 +16,15 @@ if [[ "${DT_API_TOKEN}" == dt0s16* ]]; then
 fi
 
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
-export DYNAKUBE_NAME="${DYNAKUBE_NAME:-nebulatrace}"
-export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-nebulatrace-demo}"
-export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/nebulatrace}"
+export DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
+export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-obs-demo}"
+export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/obs-demo}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=nebulatrace,team=service-monitoring}"
-export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
 export FAAS_VERSION="${FAAS_VERSION:-1.0.0}"
 export DEMO_CONTROLS_ENABLED="${DEMO_CONTROLS_ENABLED:-true}"
-export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.02}"
+export LOADGEN_ERROR_RATE="${LOADGEN_ERROR_RATE:-0.05}"
 export MEMORY_PRESSURE_MB="${MEMORY_PRESSURE_MB:-4}"
 export MEMORY_SURVIVOR_BATCHES="${MEMORY_SURVIVOR_BATCHES:-8}"
 
@@ -125,7 +123,7 @@ spec:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          nebulatrace.dev/oneagent: "true"
+          obs-demo.dev/oneagent: "true"
   activeGate:
     capabilities:
       - kubernetes-monitoring
@@ -141,7 +139,7 @@ spec:
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        nebulatrace.dev/otel: "true"
+        obs-demo.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}
@@ -152,18 +150,28 @@ rm -f "$DYNAKUBE_MANIFEST"
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
-step "Deploying NebulaTrace app"
-MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/nebulatrace/main/deploy/dist/nebulatrace.yaml"
-if [ -f "deploy/dist/nebulatrace.yaml" ]; then
+step "Deploying Observability Demo app"
+MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/obs-demo/main/deploy/dist/obs-demo.yaml"
+if [ -f "deploy/dist/obs-demo.yaml" ]; then
   # Running from repo checkout — use local copy with env substitution
-  envsubst < deploy/dist/nebulatrace.yaml | kubectl apply -f -
+  envsubst < deploy/dist/obs-demo.yaml | kubectl apply -f -
 else
   # Running via curl — fetch and apply the pre-rendered public manifest
   curl -sL "$MANIFEST_URL" | kubectl apply -f -
 fi
 
 step "Waiting for app rollout"
-kubectl -n nebulatrace rollout status deployment/gateway-api --timeout=180s || true
+kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
+# Let the control UI link to the tenant (non-secret); gateway-api reads DT_TENANT_URL from obs-demo-config.
+if [ "$(kubectl -n obs-demo get configmap obs-demo-config -o jsonpath='{.data.DT_TENANT_URL}' 2>/dev/null)" != "$DT_TENANT_URL" ]; then
+  kubectl -n obs-demo patch configmap obs-demo-config --type merge -p "{\"data\":{\"DT_TENANT_URL\":\"${DT_TENANT_URL}\"}}"
+  kubectl -n obs-demo rollout restart deployment/gateway-api
+  kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
+fi
+# Layered resource attributes (config/attributes.yaml) are applied by the gateway; skip when run without the repo.
+if [ -f scripts/apply-attributes.sh ]; then
+  ./scripts/apply-attributes.sh || echo "Attributes not applied; run 'make attributes' once gateway-api is ready."
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 

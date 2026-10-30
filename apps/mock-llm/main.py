@@ -1,6 +1,6 @@
-import os
 import time
 
+import flags
 import otel_setup
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -8,11 +8,12 @@ from opentelemetry import metrics, trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 otel_setup.setup("mock-llm")
+flags.init()
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
-llm_calls = meter.create_counter("nebulatrace.llm.calls")
-llm_tokens = meter.create_counter("nebulatrace.llm.tokens")
-llm_latency = meter.create_histogram("nebulatrace.llm.latency", unit="s")
+llm_calls = meter.create_counter("obs_demo.llm.calls")
+llm_tokens = meter.create_counter("obs_demo.llm.tokens")
+llm_latency = meter.create_histogram("obs_demo.llm.latency", unit="s")
 app = FastAPI(title="mock-llm")
 FastAPIInstrumentor.instrument_app(app)
 MODEL = "mock-service-analyzer"
@@ -34,7 +35,7 @@ def complete(_request: Completion):
         span.set_attribute("gen_ai.operation.name", "chat")
         span.set_attribute("gen_ai.provider.name", "mock")
         span.set_attribute("gen_ai.request.model", MODEL)
-        if os.getenv("SCENARIO_MODE") == "ai-latency":
+        if flags.enabled("ai-latency"):
             time.sleep(2)
         text = "Inspect the failing dependency, queue delay, and downstream status before changing configuration."
         token_count = len(text.split())

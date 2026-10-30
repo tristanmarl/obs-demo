@@ -11,16 +11,16 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: nebulatrace
+  name: obs-demo
   labels:
     istio-injection: enabled
-    nebulatrace.dev/otel: "true"
-    nebulatrace.dev/oneagent: "true"
+    obs-demo.dev/otel: "true"
+    obs-demo.dev/oneagent: "true"
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: nebulatrace-data
+  name: obs-demo-data
   labels:
     istio-injection: disabled
-    nebulatrace.dev/oneagent: "true"
+    obs-demo.dev/oneagent: "true"

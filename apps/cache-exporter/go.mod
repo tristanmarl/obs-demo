@@ -1,4 +1,4 @@
-module dev.nebulatrace/cache-exporter
+module dev.obsdemo/cache-exporter
 
 go 1.23
 

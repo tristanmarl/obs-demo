@@ -14,9 +14,9 @@ DELAY_MS = int(os.getenv("TRIGGER_DELAY_MS", "7000"))
 TIMEOUT = float(os.getenv("TRIGGER_TIMEOUT_SECONDS", "5"))
 PROVIDER = os.getenv("FAAS_PROVIDER", "aws")
 PROVIDER_CONFIG = {
-    "aws": {"region": "us-east-1", "event_source": "arn:aws:sns:us-east-1:000000000000:nebulatrace-jobs", "messaging": "aws_sns"},
-    "azure": {"region": "westeurope", "event_source": "/subscriptions/00000000/resourceGroups/nebulatrace/providers/Microsoft.EventGrid/topics/jobs-requested", "messaging": "azure_event_grid"},
-    "gcp": {"region": "europe-west3", "event_source": "//pubsub.googleapis.com/projects/nebulatrace/topics/jobs-requested", "messaging": "gcp_pubsub"},
+    "aws": {"region": "us-east-1", "event_source": "arn:aws:sns:us-east-1:000000000000:obs-demo-jobs", "messaging": "aws_sns"},
+    "azure": {"region": "westeurope", "event_source": "/subscriptions/00000000/resourceGroups/obs-demo/providers/Microsoft.EventGrid/topics/jobs-requested", "messaging": "azure_event_grid"},
+    "gcp": {"region": "europe-west3", "event_source": "//pubsub.googleapis.com/projects/obs-demo/topics/jobs-requested", "messaging": "gcp_pubsub"},
 }
 if PROVIDER not in PROVIDER_CONFIG:
     raise ValueError("FAAS_PROVIDER must be aws, azure, or gcp")
@@ -35,9 +35,9 @@ otel_setup.setup(SERVICE_NAME, extra={
 })
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
-invocations = meter.create_counter("nebulatrace.function.invocations")
-failures = meter.create_counter("nebulatrace.function.failures")
-latency = meter.create_histogram("nebulatrace.function.gateway.duration", unit="s")
+invocations = meter.create_counter("obs_demo.function.invocations")
+failures = meter.create_counter("obs_demo.function.failures")
+latency = meter.create_histogram("obs_demo.function.gateway.duration", unit="s")
 
 
 def invoke_job(headers):
