@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-traceforge}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-traceforge-data}"
+APP_NAMESPACE="${APP_NAMESPACE:-obs-demo}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-obs-demo-data}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ "$#" -ne 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then

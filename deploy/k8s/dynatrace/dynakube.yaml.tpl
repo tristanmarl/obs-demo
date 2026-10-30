@@ -30,7 +30,7 @@ spec:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          traceforge.dev/oneagent: "true"
+          obs-demo.dev/oneagent: "true"
   activeGate:
     capabilities:
       - kubernetes-monitoring
@@ -46,7 +46,7 @@ spec:
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        traceforge.dev/otel: "true"
+        obs-demo.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}

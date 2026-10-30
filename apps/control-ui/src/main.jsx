@@ -112,7 +112,7 @@ function App() {
   return (
     <main>
       <header className="header">
-        <p className="eyebrow">TraceForge</p>
+        <p className="eyebrow">Observability Demo</p>
         <h1>Distributed systems observability lab</h1>
         <p className="subtitle">Generate connected HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, FaaS, AI, and memory signals.</p>
         <div className={`status-bar ${!apiAvailable ? "status-bar--offline" : ""}`} role="status">

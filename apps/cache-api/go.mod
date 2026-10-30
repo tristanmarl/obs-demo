@@ -1,4 +1,4 @@
-module dev.traceforge/cache-api
+module dev.obsdemo/cache-api
 
 go 1.23
 

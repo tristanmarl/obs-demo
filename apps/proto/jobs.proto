@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package traceforge.jobs;
+package obs_demo.jobs;
 
 service JobExecutor {
   rpc ValidateJob(JobRequest) returns (ValidateJobReply);

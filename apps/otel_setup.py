@@ -13,7 +13,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 def setup(service_name, extra=None):
     resource = Resource.create({
         "service.name": service_name,
-        "service.namespace": "traceforge",
+        "service.namespace": "obs-demo",
         "deployment.environment.name": "demo",
         "service.version": os.getenv("SERVICE_VERSION", os.getenv("IMAGE_TAG", "dev")),
         **(extra or {}),

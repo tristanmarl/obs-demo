@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Applies a scoped traceforge DynaKube to an existing Dynatrace Operator installation.
+# Applies a scoped obs-demo DynaKube to an existing Dynatrace Operator installation.
 # Does NOT install the operator or create an ActiveGate — assumes both already exist.
 set -euo pipefail
 
@@ -17,8 +17,8 @@ if ! kubectl get deployment dynatrace-operator -n dynatrace &>/dev/null; then
   exit 1
 fi
 
-if kubectl get dynakube traceforge -n dynatrace &>/dev/null; then
-  echo "DynaKube 'traceforge' already exists — re-applying."
+if kubectl get dynakube obs-demo -n dynatrace &>/dev/null; then
+  echo "DynaKube 'obs-demo' already exists — re-applying."
 fi
 
 DT_API_URL="${DT_TENANT_URL%/}"
@@ -31,6 +31,6 @@ if ! command -v envsubst >/dev/null 2>&1; then
 fi
 
 envsubst < deploy/k8s/dynatrace/dynakube-noactivegate.yaml.tpl | kubectl apply -f -
-echo "DynaKube 'traceforge' applied. The traceforge namespace is labelled traceforge.dev/oneagent=true"
-echo "and traceforge.dev/otel=true — restart deployments after injection webhooks are ready:"
-echo "  kubectl rollout restart deployment -n traceforge"
+echo "DynaKube 'obs-demo' applied. The obs-demo namespace is labelled obs-demo.dev/oneagent=true"
+echo "and obs-demo.dev/otel=true — restart deployments after injection webhooks are ready:"
+echo "  kubectl rollout restart deployment -n obs-demo"

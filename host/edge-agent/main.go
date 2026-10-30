@@ -30,7 +30,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const name = "tf-edge-agent"
+const name = "obs-edge-agent"
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -58,7 +58,7 @@ func setup(ctx context.Context) (func(context.Context) error, error) {
 		resource.WithProcessPID(),
 		resource.WithAttributes(
 			semconv.ServiceName(name),
-			semconv.ServiceNamespace("traceforge"),
+			semconv.ServiceNamespace("obs-demo"),
 			semconv.ServiceVersion(env("SERVICE_VERSION", "dev")),
 			attribute.String("deployment.environment.name", "demo"),
 		),
@@ -110,8 +110,8 @@ func main() {
 
 	tracer := otel.Tracer(name)
 	meter := otel.Meter(name)
-	submissions, _ := meter.Int64Counter("traceforge.edge.submissions", metric.WithDescription("Job submissions from the edge host"))
-	duration, _ := meter.Float64Histogram("traceforge.edge.duration", metric.WithUnit("s"), metric.WithDescription("Job submission duration"))
+	submissions, _ := meter.Int64Counter("obs_demo.edge.submissions", metric.WithDescription("Job submissions from the edge host"))
+	duration, _ := meter.Float64Histogram("obs_demo.edge.duration", metric.WithUnit("s"), metric.WithDescription("Job submission duration"))
 
 	url := env("INGRESS_URL", "http://127.0.0.1") + "/api/jobs"
 	client := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport), Timeout: 5 * time.Second}

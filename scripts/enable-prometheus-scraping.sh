@@ -9,7 +9,7 @@ cat <<'INFO'
 Dynatrace Prometheus scraping prerequisites
 ──────────────────────────────────────────────────────────────────────────────
 
-TraceForge's cache-exporter and queue-exporter expose /metrics and are
+Observability Demo's cache-exporter and queue-exporter expose /metrics and are
 annotated for ActiveGate scraping via the Istio merged endpoint (port 15020).
 
 Two things must be true before metrics appear in Dynatrace:
@@ -48,15 +48,15 @@ Two things must be true before metrics appear in Dynatrace:
 Once both are in place, verify with:
 
   # Confirm Istio merged the app metrics into port 15020
-  kubectl -n traceforge exec deploy/cache-exporter -c istio-proxy -- \
-    curl -s localhost:15020/stats/prometheus | grep traceforge_
+  kubectl -n obs-demo exec deploy/cache-exporter -c istio-proxy -- \
+    curl -s localhost:15020/stats/prometheus | grep obs_demo_
 
   # Query in Dynatrace Notebooks (DQL) after ~2 minutes:
-  timeseries val = avg(traceforge_probe_value),
+  timeseries val = avg(obs_demo_probe_value),
     by: { variant, k8s.pod.name, k8s.namespace.name }
 
   # Check what metrics Dynatrace registered:
-  load "/dt/platform/metrics.metadata" | filter matchesValue(key, "traceforge_*")
+  load "/dt/platform/metrics.metadata" | filter matchesValue(key, "obs_demo_*")
 
 ──────────────────────────────────────────────────────────────────────────────
 INFO

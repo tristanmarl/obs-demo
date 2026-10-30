@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/tristanmarl/traceforge
+  IMAGE_PREFIX: ghcr.io/tristanmarl/obs-demo
 
 jobs:
   build-and-push:
@@ -83,4 +83,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update dist manifest [skip ci]"
-          file_pattern: deploy/dist/traceforge.yaml
+          file_pattern: deploy/dist/obs-demo.yaml

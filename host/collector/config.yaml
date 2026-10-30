@@ -1,5 +1,5 @@
-# OpenTelemetry Collector configuration for the TraceForge EC2 host.
-# Based on Dynatrace's host-metrics.yaml reference; TraceForge additions are marked below.
+# OpenTelemetry Collector configuration for the Observability Demo EC2 host.
+# Based on Dynatrace's host-metrics.yaml reference; Observability Demo additions are marked below.
 #
 # This configuration is tailored for the Dynatrace OpenTelemetry Host Extension (custom:opentelemetry) and Host Monitoring.
 # Only metrics used by the extension and dashboard are enabled to minimize data volume and cardinality.
@@ -35,7 +35,7 @@ receivers:
       - type: move
         from: body.MESSAGE
         to: body.message
-  # TraceForge: MariaDB internals via prometheus-mysqld-exporter
+  # Observability Demo: MariaDB internals via prometheus-mysqld-exporter
   prometheus/mariadb:
     config:
       scrape_configs:
@@ -302,7 +302,7 @@ processors:
         os.build.id:
           enabled: true
 
-  # TraceForge: journald _EXE is a full path (/usr/sbin/mariadbd); hostmetrics reports the basename
+  # Observability Demo: journald _EXE is a full path (/usr/sbin/mariadbd); hostmetrics reports the basename
   transform/journald:
     error_mode: ignore
     log_statements:
@@ -310,7 +310,7 @@ processors:
         statements:
           - replace_pattern(log.attributes["process.executable.name"], "^.*/", "")
 
-  # TraceForge: attach MariaDB exporter metrics to the mariadbd otel:process entity
+  # Observability Demo: attach MariaDB exporter metrics to the mariadbd otel:process entity
   resource/mariadb:
     attributes:
       - key: process.executable.name
@@ -328,7 +328,7 @@ exporters:
         max_size: 3000
         flush_timeout: 60s
 
-  # TraceForge: default queue, no 60s batching, for responsive traces/logs/app metrics
+  # Observability Demo: default queue, no 60s batching, for responsive traces/logs/app metrics
   otlp_http/signals:
     endpoint: "${env:DT_ENDPOINT}"
     headers:

@@ -1,4 +1,4 @@
-module dev.traceforge/edge-agent
+module dev.obsdemo/edge-agent
 
 go 1.26.0
 

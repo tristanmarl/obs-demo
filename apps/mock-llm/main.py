@@ -10,9 +10,9 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 otel_setup.setup("mock-llm")
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
-llm_calls = meter.create_counter("traceforge.llm.calls")
-llm_tokens = meter.create_counter("traceforge.llm.tokens")
-llm_latency = meter.create_histogram("traceforge.llm.latency", unit="s")
+llm_calls = meter.create_counter("obs_demo.llm.calls")
+llm_tokens = meter.create_counter("obs_demo.llm.tokens")
+llm_latency = meter.create_histogram("obs_demo.llm.latency", unit="s")
 app = FastAPI(title="mock-llm")
 FastAPIInstrumentor.instrument_app(app)
 MODEL = "mock-service-analyzer"

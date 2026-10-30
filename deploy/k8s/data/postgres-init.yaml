@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init
-  namespace: traceforge-data
+  namespace: obs-demo-data
 data:
   001-schema.sql: |
     create table if not exists catalog_items (

@@ -2,7 +2,7 @@
 
 ## Resource identity
 
-`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=traceforge`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
+`apps/otel_setup.py` is the shared Python setup helper. Each OTel workload sets its own `service.name`; resources also contain `service.namespace=obs-demo`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION` (derived from `IMAGE_TAG`). Shared `OTEL_RESOURCE_ATTRIBUTES` never contains `service.name` or `service.instance.id`.
 
 Kubernetes workload names equal service names. OneAgent annotations and Dynatrace OTLP auto-configuration remain on the workloads that use them.
 
@@ -32,7 +32,7 @@ The analysis path uses `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.
 
 ## Custom metrics
 
-The workload uses `traceforge.jobs.*`, `traceforge.job.*`, `traceforge.worker.*`, `traceforge.grpc.duration`, `traceforge.cache.*`, `traceforge.function.*`, `traceforge.analysis.*`, and non-duplicate `traceforge.llm.*` metrics. Duration histograms declare unit `s`.
+The workload uses `obs_demo.jobs.*`, `obs_demo.job.*`, `obs_demo.worker.*`, `obs_demo.grpc.duration`, `obs_demo.cache.*`, `obs_demo.function.*`, `obs_demo.analysis.*`, and non-duplicate `obs_demo.llm.*` metrics. Duration histograms declare unit `s`.
 
 ## Prometheus scraping
 
@@ -45,12 +45,12 @@ prometheus.io/path: /metrics
 metrics.dynatrace.com/scrape: "true"
 metrics.dynatrace.com/port: "15020"
 metrics.dynatrace.com/path: /stats/prometheus
-metrics.dynatrace.com/filter: '{"mode": "include", "names": ["traceforge_*"]}'
+metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
 ```
 
-The filter keeps only `traceforge_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
+The filter keeps only `obs_demo_*` metrics to stay well within the 1,000-metrics-per-pod ActiveGate limit and avoid ingesting the Istio/Envoy metric set.
 
-Prometheus metric names use underscores (`traceforge_*`); OTel metric names use dots (`traceforge.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
+Prometheus metric names use underscores (`obs_demo_*`); OTel metric names use dots (`obs_demo.*`). The two namespaces are intentionally distinct so each ingest path is identifiable without inspecting metadata.
 
 ### Metric contract
 
@@ -58,20 +58,20 @@ Both exporters emit identical control metrics for cross-variant comparison:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `traceforge_probe_scrapes_total` | counter | `exporter`, `variant` | Incremented on each `/metrics` render |
-| `traceforge_probe_value` | gauge | `exporter`, `variant` | Deterministic sawtooth: `epoch % 60` |
-| `traceforge_probe_build_info` | gauge | `exporter`, `variant`, `version` | Always 1 |
+| `obs_demo_probe_scrapes_total` | counter | `exporter`, `variant` | Incremented on each `/metrics` render |
+| `obs_demo_probe_value` | gauge | `exporter`, `variant` | Deterministic sawtooth: `epoch % 60` |
+| `obs_demo_probe_build_info` | gauge | `exporter`, `variant`, `version` | Always 1 |
 
 Domain metrics:
 
 | Metric | Type | Labels | Source |
 |---|---|---|---|
-| `traceforge_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
-| `traceforge_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
-| `traceforge_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
-| `traceforge_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
+| `obs_demo_cache_keys` | gauge | `variant=oneagent` | Redis `DBSIZE` |
+| `obs_demo_cache_counter_value` | gauge | `variant=oneagent` | Demo counter key |
+| `obs_demo_jobs` | gauge | `status`, `variant=otlp` | Postgres jobs table per status |
+| `obs_demo_jobs_pending` | gauge | `variant=otlp` | Jobs in `pending`/`requested` state |
 
-`traceforge_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
+`obs_demo_jobs_pending` is the leading indicator for the `queue-backlog` failure scenario.
 
 ### Prerequisites
 

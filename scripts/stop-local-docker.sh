@@ -2,14 +2,14 @@
 set -euo pipefail
 
 for container in \
-  traceforge-control-ui traceforge-gateway-api traceforge-load-generator \
-  traceforge-catalog-api traceforge-job-api traceforge-cache-api traceforge-result-api \
-  traceforge-analysis-api traceforge-mock-llm traceforge-job-worker traceforge-grpc-service \
-  traceforge-aws-lambda-trigger traceforge-azure-functions-trigger traceforge-google-cloud-function-trigger \
-  traceforge-cache-exporter traceforge-queue-exporter \
-  traceforge-postgres traceforge-activemq traceforge-redis
+  obs-demo-control-ui obs-demo-gateway-api obs-demo-load-generator \
+  obs-demo-catalog-api obs-demo-job-api obs-demo-cache-api obs-demo-result-api \
+  obs-demo-analysis-api obs-demo-mock-llm obs-demo-job-worker obs-demo-grpc-service \
+  obs-demo-aws-lambda-trigger obs-demo-azure-functions-trigger obs-demo-google-cloud-function-trigger \
+  obs-demo-cache-exporter obs-demo-queue-exporter \
+  obs-demo-postgres obs-demo-activemq obs-demo-redis
 do
   docker rm -f "$container" >/dev/null 2>&1 || true
 done
 
-docker network rm traceforge >/dev/null 2>&1 || true
+docker network rm obs-demo >/dev/null 2>&1 || true

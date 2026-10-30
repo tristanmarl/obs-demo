@@ -1,7 +1,7 @@
 apiVersion: dynatrace.com/v1beta6
 kind: DynaKube
 metadata:
-  name: traceforge
+  name: obs-demo
   namespace: dynatrace
   annotations:
     feature.dynatrace.com/automatic-injection: "false"
@@ -12,17 +12,17 @@ spec:
     enabled: true
     namespaceSelector:
       matchExpressions:
-      - key: traceforge.dev/oneagent
+      - key: obs-demo.dev/oneagent
         operator: Exists
   oneAgent:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          traceforge.dev/oneagent: "true"
+          obs-demo.dev/oneagent: "true"
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        traceforge.dev/otel: "true"
+        obs-demo.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run ON the EC2/k3s host: sudo ./scripts/install-host-monitoring.sh
-# Installs MariaDB, the Dynatrace OTel Collector and tf-edge-agent as native services,
+# Installs MariaDB, the Dynatrace OTel Collector and obs-edge-agent as native services,
 # then points result-api at the host database.
 # Token scopes needed: metrics.ingest, logs.ingest, openTelemetryTrace.ingest.
 set -euo pipefail
@@ -50,46 +50,46 @@ for tool in docker envsubst openssl curl "$KUBECTL"; do
   command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required."; exit 1; }
 done
 
-install -d -m 755 /etc/traceforge
+install -d -m 755 /etc/obs-demo
 
 # MariaDB + exporter
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq mariadb-server prometheus-mysqld-exporter
 
-if [ ! -f /etc/traceforge/host-db.env ]; then
-  (umask 077; printf 'DB_PASSWORD=%s\nEXPORTER_PASSWORD=%s\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" > /etc/traceforge/host-db.env)
+if [ ! -f /etc/obs-demo/host-db.env ]; then
+  (umask 077; printf 'DB_PASSWORD=%s\nEXPORTER_PASSWORD=%s\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" > /etc/obs-demo/host-db.env)
 fi
-load_env_file /etc/traceforge/host-db.env
+load_env_file /etc/obs-demo/host-db.env
 
-printf '[mysqld]\nbind-address = %s\n' "$HOST_DB_IP" > /etc/mysql/mariadb.conf.d/60-traceforge.cnf
+printf '[mysqld]\nbind-address = %s\n' "$HOST_DB_IP" > /etc/mysql/mariadb.conf.d/60-obs-demo.cnf
 systemctl restart mariadb
 
 mysql <<SQL
-CREATE DATABASE IF NOT EXISTS traceforge;
-CREATE TABLE IF NOT EXISTS traceforge.results (
+CREATE DATABASE IF NOT EXISTS obs_demo;
+CREATE TABLE IF NOT EXISTS obs_demo.results (
   id bigint auto_increment primary key,
   job_id varchar(64) not null,
   status varchar(32) not null,
   message varchar(255),
   created_at timestamp default current_timestamp
 );
-CREATE USER IF NOT EXISTS 'traceforge'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-ALTER USER 'traceforge'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON traceforge.* TO 'traceforge'@'%';
+CREATE USER IF NOT EXISTS 'obs_demo'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER 'obs_demo'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON obs_demo.* TO 'obs_demo'@'%';
 CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY '${EXPORTER_PASSWORD}';
 ALTER USER 'exporter'@'localhost' IDENTIFIED BY '${EXPORTER_PASSWORD}';
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
-(umask 027; printf '[client]\nuser=exporter\npassword=%s\nsocket=/run/mysqld/mysqld.sock\n' "$EXPORTER_PASSWORD" > /etc/mysql/traceforge-exporter.cnf)
-chown root:prometheus /etc/mysql/traceforge-exporter.cnf
-chmod 640 /etc/mysql/traceforge-exporter.cnf
+(umask 027; printf '[client]\nuser=exporter\npassword=%s\nsocket=/run/mysqld/mysqld.sock\n' "$EXPORTER_PASSWORD" > /etc/mysql/obs-demo-exporter.cnf)
+chown root:prometheus /etc/mysql/obs-demo-exporter.cnf
+chmod 640 /etc/mysql/obs-demo-exporter.cnf
 if grep -q '^ARGS=' /etc/default/prometheus-mysqld-exporter 2>/dev/null; then
-  sed -i 's|^ARGS=.*|ARGS="--config.my-cnf=/etc/mysql/traceforge-exporter.cnf --web.listen-address=127.0.0.1:9104"|' /etc/default/prometheus-mysqld-exporter
+  sed -i 's|^ARGS=.*|ARGS="--config.my-cnf=/etc/mysql/obs-demo-exporter.cnf --web.listen-address=127.0.0.1:9104"|' /etc/default/prometheus-mysqld-exporter
 else
-  echo 'ARGS="--config.my-cnf=/etc/mysql/traceforge-exporter.cnf --web.listen-address=127.0.0.1:9104"' >> /etc/default/prometheus-mysqld-exporter
+  echo 'ARGS="--config.my-cnf=/etc/mysql/obs-demo-exporter.cnf --web.listen-address=127.0.0.1:9104"' >> /etc/default/prometheus-mysqld-exporter
 fi
 systemctl restart prometheus-mysqld-exporter
 echo "WARNING: MariaDB listens on ${HOST_DB_IP}:3306. Do not expose 3306 in the EC2 security group."
@@ -109,33 +109,33 @@ curl -fsSL -o "$TMP/checksums.txt" "$BASE_URL/checksums.txt"
 (cd "$TMP" && sha256sum -c --ignore-missing checksums.txt)
 tar -xzf "$TMP/$TARBALL" -C "$TMP" dynatrace-otel-collector
 install -m 755 "$TMP/dynatrace-otel-collector" /usr/local/bin/dynatrace-otel-collector
-install -m 644 host/collector/config.yaml /etc/traceforge/otel-collector.yaml
-(umask 077; printf 'DT_ENDPOINT=%s/api/v2/otlp\nDT_API_TOKEN=%s\nJOURNALD_DIRECTORY=%s\n' "${DT_TENANT_URL%/}" "$DT_TOKEN" "$JOURNALD_DIRECTORY" > /etc/traceforge/otel-collector.env)
+install -m 644 host/collector/config.yaml /etc/obs-demo/otel-collector.yaml
+(umask 077; printf 'DT_ENDPOINT=%s/api/v2/otlp\nDT_API_TOKEN=%s\nJOURNALD_DIRECTORY=%s\n' "${DT_TENANT_URL%/}" "$DT_TOKEN" "$JOURNALD_DIRECTORY" > /etc/obs-demo/otel-collector.env)
 
 # Edge agent
 docker build -q --target bin --output "type=local,dest=$TMP/edge" host/edge-agent >/dev/null
-install -m 755 "$TMP/edge/tf-edge-agent" /usr/local/bin/tf-edge-agent
-printf 'INGRESS_URL=%s\nSERVICE_VERSION=%s\n' "$INGRESS_URL" "$SERVICE_VERSION" > /etc/traceforge/edge-agent.env
+install -m 755 "$TMP/edge/obs-edge-agent" /usr/local/bin/obs-edge-agent
+printf 'INGRESS_URL=%s\nSERVICE_VERSION=%s\n' "$INGRESS_URL" "$SERVICE_VERSION" > /etc/obs-demo/edge-agent.env
 
-install -m 644 host/systemd/traceforge-otel-collector.service host/systemd/tf-edge-agent.service /etc/systemd/system/
+install -m 644 host/systemd/obs-demo-otel-collector.service host/systemd/obs-edge-agent.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now traceforge-otel-collector tf-edge-agent
-systemctl restart traceforge-otel-collector tf-edge-agent
+systemctl enable --now obs-demo-otel-collector obs-edge-agent
+systemctl restart obs-demo-otel-collector obs-edge-agent
 
 # Kubernetes wiring
 envsubst < deploy/k8s/host/host-db.yaml.tpl | $KUBECTL apply -f -
-$KUBECTL -n traceforge create secret generic host-db \
-  --from-literal=RESULT_DB_URL="mysql://traceforge:${DB_PASSWORD}@host-db.traceforge.svc.cluster.local:3306/traceforge" \
+$KUBECTL -n obs-demo create secret generic host-db \
+  --from-literal=RESULT_DB_URL="mysql://obs_demo:${DB_PASSWORD}@host-db.obs-demo.svc.cluster.local:3306/obs_demo" \
   --dry-run=client -o yaml | $KUBECTL apply -f -
-$KUBECTL -n traceforge set env deployment/result-api --from=secret/host-db
-$KUBECTL -n traceforge rollout status deployment/result-api --timeout=180s
+$KUBECTL -n obs-demo set env deployment/result-api --from=secret/host-db
+$KUBECTL -n obs-demo rollout status deployment/result-api --timeout=180s
 
 cat <<MSG
 
 Host monitoring installed.
-  systemctl status traceforge-otel-collector tf-edge-agent mariadb prometheus-mysqld-exporter
-  journalctl -u traceforge-otel-collector -u tf-edge-agent -f
-  mysql -e 'SELECT COUNT(*) FROM traceforge.results'
+  systemctl status obs-demo-otel-collector obs-edge-agent mariadb prometheus-mysqld-exporter
+  journalctl -u obs-demo-otel-collector -u obs-edge-agent -f
+  mysql -e 'SELECT COUNT(*) FROM obs_demo.results'
 
 In Dynatrace (the OpenTelemetry Host Monitoring extension must be activated), try:
   fetch dt.entity.otel:host

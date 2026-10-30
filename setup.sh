@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# TraceForge full setup: Istio + Dynatrace Operator + app
+# Observability Demo full setup: Istio + Dynatrace Operator + app
 # Usage:
 #   DT_TENANT_URL=https://abc123.live.dynatrace.com DT_API_TOKEN=dt0c01.xxx bash setup.sh
-#   curl -sL https://raw.githubusercontent.com/tristanmarl/traceforge/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
+#   curl -sL https://raw.githubusercontent.com/tristanmarl/obs-demo/main/setup.sh | DT_TENANT_URL=... DT_API_TOKEN=... bash
 set -euo pipefail
 
 # ── Config (all overridable via env) ─────────────────────────────────────────
@@ -16,11 +16,11 @@ if [[ "${DT_API_TOKEN}" == dt0s16* ]]; then
 fi
 
 export DT_DATA_INGEST_TOKEN="${DT_DATA_INGEST_TOKEN:-$DT_API_TOKEN}"
-export DYNAKUBE_NAME="${DYNAKUBE_NAME:-traceforge}"
-export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-traceforge-demo}"
-export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/traceforge}"
+export DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
+export K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-obs-demo}"
+export IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io/tristanmarl/obs-demo}"
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
-export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=traceforge,team=service-monitoring}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=demo,service.namespace=obs-demo,team=service-monitoring}"
 export DT_CUSTOM_PROP="${DT_CUSTOM_PROP:-dt.owner=service-monitoring}"
 export LOADGEN_DELAY_MS="${LOADGEN_DELAY_MS:-750}"
 export LOADGEN_BURST="${LOADGEN_BURST:-1}"
@@ -125,7 +125,7 @@ spec:
     applicationMonitoring:
       namespaceSelector:
         matchLabels:
-          traceforge.dev/oneagent: "true"
+          obs-demo.dev/oneagent: "true"
   activeGate:
     capabilities:
       - kubernetes-monitoring
@@ -141,7 +141,7 @@ spec:
   otlpExporterConfiguration:
     namespaceSelector:
       matchLabels:
-        traceforge.dev/otel: "true"
+        obs-demo.dev/otel: "true"
     signals:
       metrics: {}
       traces: {}
@@ -152,18 +152,18 @@ rm -f "$DYNAKUBE_MANIFEST"
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
-step "Deploying TraceForge app"
-MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/traceforge/main/deploy/dist/traceforge.yaml"
-if [ -f "deploy/dist/traceforge.yaml" ]; then
+step "Deploying Observability Demo app"
+MANIFEST_URL="https://raw.githubusercontent.com/tristanmarl/obs-demo/main/deploy/dist/obs-demo.yaml"
+if [ -f "deploy/dist/obs-demo.yaml" ]; then
   # Running from repo checkout — use local copy with env substitution
-  envsubst < deploy/dist/traceforge.yaml | kubectl apply -f -
+  envsubst < deploy/dist/obs-demo.yaml | kubectl apply -f -
 else
   # Running via curl — fetch and apply the pre-rendered public manifest
   curl -sL "$MANIFEST_URL" | kubectl apply -f -
 fi
 
 step "Waiting for app rollout"
-kubectl -n traceforge rollout status deployment/gateway-api --timeout=180s || true
+kubectl -n obs-demo rollout status deployment/gateway-api --timeout=180s || true
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 

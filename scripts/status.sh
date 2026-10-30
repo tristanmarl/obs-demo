@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-traceforge}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-traceforge-data}"
-DYNAKUBE_NAME="${DYNAKUBE_NAME:-traceforge}"
+APP_NAMESPACE="${APP_NAMESPACE:-obs-demo}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-obs-demo-data}"
+DYNAKUBE_NAME="${DYNAKUBE_NAME:-obs-demo}"
 
 echo "Context: $(kubectl config current-context 2>/dev/null || echo unknown)"
 echo

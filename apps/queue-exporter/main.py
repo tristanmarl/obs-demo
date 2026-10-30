@@ -26,27 +26,27 @@ EXPORTER = "queue-exporter"
 VARIANT = "otlp"
 
 probe_scrapes_total = Counter(
-    "traceforge_probe_scrapes_total",
+    "obs_demo_probe_scrapes_total",
     "Total number of /metrics renders by this exporter.",
     ["exporter", "variant"],
 )
 probe_value = Gauge(
-    "traceforge_probe_value",
+    "obs_demo_probe_value",
     "Deterministic sawtooth (epoch seconds mod 60) for cross-variant comparison.",
     ["exporter", "variant"],
 )
 probe_build_info = Info(
-    "traceforge_probe",
+    "obs_demo_probe",
     "Build information.",
     ["exporter", "variant"],
 )
 jobs_gauge = Gauge(
-    "traceforge_jobs",
+    "obs_demo_jobs",
     "Number of jobs by status.",
     ["status", "variant"],
 )
 jobs_pending = Gauge(
-    "traceforge_jobs_pending",
+    "obs_demo_jobs_pending",
     "Number of jobs in pending/requested state (queue backlog depth).",
     ["variant"],
 )
@@ -57,7 +57,7 @@ probe_build_info.labels(exporter=EXPORTER, variant=VARIANT).info({"version": ver
 # ── OTel metrics (OTLP path) ──────────────────────────────────────────────────
 
 polls_total = meter.create_counter(
-    "traceforge.queue_exporter.polls",
+    "obs_demo.queue_exporter.polls",
     description="Number of Postgres poll cycles completed.",
 )
 
@@ -68,7 +68,7 @@ FastAPIInstrumentor.instrument_app(app)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://traceforge:traceforge@postgres.traceforge-data:5432/traceforge",
+    "postgresql://obs_demo:obs_demo@postgres.obs-demo-data:5432/obs_demo",
 )
 
 

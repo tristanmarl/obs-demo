@@ -1,4 +1,4 @@
-package dev.traceforge.catalog;
+package dev.obsdemo.catalog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

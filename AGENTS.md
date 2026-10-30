@@ -1,15 +1,15 @@
 # AGENTS.md
 
-TraceForge is a small Kubernetes workload for exploring observability in a distributed system. Keep it understandable in one sitting and preserve the mixed OneAgent/OpenTelemetry demonstration.
+Observability Demo is a small Kubernetes workload for exploring observability in a distributed system. Keep it understandable in one sitting and preserve the mixed OneAgent/OpenTelemetry demonstration.
 
 ## Architecture
 
-- Namespaces stay `traceforge` and `traceforge-data`; Istio sidecars are enabled only for the app namespace.
+- Namespaces stay `obs-demo` and `obs-demo-data`; Istio sidecars are enabled only for the app namespace.
 - Keep PostgreSQL, Redis, ActiveMQ Classic, Istio, Dynatrace Operator, OneAgent, OTLP auto-configuration, and ActiveGate Prometheus scraping.
 - Main flow: `control-ui / load-generator -> gateway-api -> job-api -> PostgreSQL -> ActiveMQ jobs.requested -> job-worker -> grpc-service -> result-api`.
 - Supporting flows: `gateway-api -> catalog-api -> PostgreSQL`, `gateway-api -> cache-api -> Redis`, and `gateway-api -> analysis-api -> mock-llm`.
 - `aws-lambda-trigger`, `azure-functions-trigger`, and `google-cloud-function-trigger` are simulated FaaS workloads that submit ordinary jobs through `gateway-api`.
-- `cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by ActiveGate through Istio's merged endpoint (`15020/stats/prometheus`). Both emit identical `traceforge_probe_*` control metrics for cross-variant comparison. `traceforge_jobs_pending` from `queue-exporter` is the leading indicator for the `queue-backlog` scenario. Prometheus metric names use underscores (`traceforge_*`); OTel names use dots (`traceforge.*`).
+- `cache-exporter` (Go, OneAgent) and `queue-exporter` (Python, OTLP) expose Prometheus metrics scraped by ActiveGate through Istio's merged endpoint (`15020/stats/prometheus`). Both emit identical `obs_demo_probe_*` control metrics for cross-variant comparison. `obs_demo_jobs_pending` from `queue-exporter` is the leading indicator for the `queue-backlog` scenario. Prometheus metric names use underscores (`obs_demo_*`); OTel names use dots (`obs_demo.*`).
 - Keep React/Vite, Node/Fastify, Java/Spring Boot, Go, and Python/FastAPI. Do not add Helm, Kustomize, Terraform, a frontend component library, a shared service framework, dashboards, or another narrative domain.
 
 ## Development
@@ -34,7 +34,7 @@ Jobs use `{name, workUnits}`. `name` is 1–80 ASCII lowercase letters, numbers,
 ## Telemetry
 
 - `apps/otel_setup.py` is the only shared Python OTel setup helper.
-- OTel resources set `service.name` per workload, `service.namespace=traceforge`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION`/`IMAGE_TAG`.
+- OTel resources set `service.name` per workload, `service.namespace=obs-demo`, `deployment.environment.name=demo`, and `service.version` from `SERVICE_VERSION`/`IMAGE_TAG`.
 - Never put `service.name` in shared `OTEL_RESOURCE_ATTRIBUTES`.
 - Keep W3C propagation, current messaging attributes, current `gen_ai.*` attributes, seconds for duration histograms, and low-cardinality metric dimensions.
 - Never record prompt or response bodies.

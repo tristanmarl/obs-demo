@@ -21,28 +21,28 @@ const (
 
 var (
 	probeScrapesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "traceforge_probe_scrapes_total",
+		Name: "obs_demo_probe_scrapes_total",
 		Help: "Total number of /metrics renders by this exporter.",
 	}, []string{"exporter", "variant"})
 
 	probeValue = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "traceforge_probe_value",
+		Name: "obs_demo_probe_value",
 		Help: "Deterministic sawtooth (epoch seconds mod 60) for cross-variant comparison.",
 	}, []string{"exporter", "variant"})
 
 	probeBuildInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "traceforge_probe_build_info",
+		Name: "obs_demo_probe_build_info",
 		Help: "Build information, always 1.",
 	}, []string{"exporter", "variant", "version"})
 
 	cacheKeys = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "traceforge_cache_keys",
+		Name: "obs_demo_cache_keys",
 		Help: "Number of keys in the Redis database.",
 	}, []string{"variant"})
 
 	cacheCounterValue = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "traceforge_cache_counter_value",
-		Help: "Current value of the traceforge demo counter key.",
+		Name: "obs_demo_cache_counter_value",
+		Help: "Current value of the demo counter key.",
 	}, []string{"variant"})
 )
 
@@ -67,7 +67,7 @@ func main() {
 
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		redisURL = "redis://redis.traceforge-data:6379"
+		redisURL = "redis://redis.obs-demo-data:6379"
 	}
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -82,7 +82,7 @@ func main() {
 			if n, err := client.DBSize(ctx).Result(); err == nil {
 				cacheKeys.WithLabelValues(variant).Set(float64(n))
 			}
-			const counterKey = "traceforge:demo:counter"
+			const counterKey = "obs-demo:counter"
 			if val, err := client.Get(ctx, counterKey).Int64(); err == nil {
 				cacheCounterValue.WithLabelValues(variant).Set(float64(val))
 			} else if errors.Is(err, redis.Nil) {

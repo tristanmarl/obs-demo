@@ -3,7 +3,7 @@
 node_modules/
 dist/
 !deploy/dist/
-!deploy/dist/traceforge.yaml
+!deploy/dist/obs-demo.yaml
 target/
 __pycache__/
 *.pyc

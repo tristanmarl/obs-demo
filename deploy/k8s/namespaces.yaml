@@ -11,16 +11,16 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: traceforge
+  name: obs-demo
   labels:
     istio-injection: enabled
-    traceforge.dev/otel: "true"
-    traceforge.dev/oneagent: "true"
+    obs-demo.dev/otel: "true"
+    obs-demo.dev/oneagent: "true"
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: traceforge-data
+  name: obs-demo-data
   labels:
     istio-injection: disabled
-    traceforge.dev/oneagent: "true"
+    obs-demo.dev/oneagent: "true"

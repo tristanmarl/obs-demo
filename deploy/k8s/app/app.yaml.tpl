@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: traceforge-config
-  namespace: traceforge
+  name: obs-demo-config
+  namespace: obs-demo
 data:
-  DATABASE_URL: postgresql://traceforge:traceforge@postgres.traceforge-data:5432/traceforge
-  ACTIVEMQ_HOST: activemq.traceforge-data
+  DATABASE_URL: postgresql://obs_demo:obs_demo@postgres.obs-demo-data:5432/obs_demo
+  ACTIVEMQ_HOST: activemq.obs-demo-data
   ACTIVEMQ_STOMP_PORT: "61613"
   ACTIVEMQ_USER: admin
   ACTIVEMQ_PASSWORD: admin
   JOB_QUEUE: /queue/jobs.requested
-  REDIS_URL: redis://redis.traceforge-data:6379
+  REDIS_URL: redis://redis.obs-demo-data:6379
   CATALOG_URL: http://catalog-api:8080
   CACHE_URL: http://cache-api:8080
   JOB_URL: http://job-api:8080
@@ -34,13 +34,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: gateway-api
-  namespace: traceforge
+  namespace: obs-demo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: gateway-api-controls
-  namespace: traceforge
+  namespace: obs-demo
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -71,11 +71,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: gateway-api-controls
-  namespace: traceforge
+  namespace: obs-demo
 subjects:
   - kind: ServiceAccount
     name: gateway-api
-    namespace: traceforge
+    namespace: obs-demo
 roleRef:
   kind: Role
   name: gateway-api-controls
@@ -85,7 +85,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: gateway-api-data-controls
-  namespace: traceforge-data
+  namespace: obs-demo-data
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -100,11 +100,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: gateway-api-data-controls
-  namespace: traceforge-data
+  namespace: obs-demo-data
 subjects:
   - kind: ServiceAccount
     name: gateway-api
-    namespace: traceforge
+    namespace: obs-demo
 roleRef:
   kind: Role
   name: gateway-api-data-controls
@@ -114,7 +114,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: control-ui
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: control-ui}}
@@ -129,13 +129,13 @@ spec:
         - name: control-ui
           image: ${IMAGE_REGISTRY}/control-ui:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: control-ui
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: control-ui}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -144,7 +144,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: gateway-api}}
@@ -160,13 +160,13 @@ spec:
         - name: gateway-api
           image: ${IMAGE_REGISTRY}/gateway-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: gateway-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: gateway-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -175,7 +175,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalog-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: catalog-api}}
@@ -191,11 +191,11 @@ spec:
           image: ${IMAGE_REGISTRY}/catalog-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           env:
-            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres.traceforge-data:5432/traceforge"}
-            - {name: SPRING_DATASOURCE_USERNAME, value: traceforge}
-            - {name: SPRING_DATASOURCE_PASSWORD, value: traceforge}
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres.obs-demo-data:5432/obs_demo"}
+            - {name: SPRING_DATASOURCE_USERNAME, value: obs_demo}
+            - {name: SPRING_DATASOURCE_PASSWORD, value: obs_demo}
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
           resources:
             requests: {cpu: 100m, memory: 128Mi}
             limits: {memory: 1Gi}
@@ -204,7 +204,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: catalog-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: catalog-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -213,7 +213,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: job-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: job-api}}
@@ -228,13 +228,13 @@ spec:
         - name: job-api
           image: ${IMAGE_REGISTRY}/job-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: job-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: job-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -243,7 +243,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cache-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: cache-api, version: stable}}
@@ -260,13 +260,13 @@ spec:
           ports: [{containerPort: 8080}]
           env:
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: cache-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: cache-api, version: stable}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -275,7 +275,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: job-worker
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: job-worker}}
@@ -291,13 +291,13 @@ spec:
           image: ${IMAGE_REGISTRY}/job-worker:${IMAGE_TAG}
           env:
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: result-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: result-api}}
@@ -314,13 +314,13 @@ spec:
           ports: [{containerPort: 8080}]
           env:
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: result-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: result-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -329,7 +329,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: analysis-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: analysis-api}}
@@ -344,13 +344,13 @@ spec:
         - name: analysis-api
           image: ${IMAGE_REGISTRY}/analysis-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: analysis-api
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: analysis-api}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -359,7 +359,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mock-llm
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: mock-llm}}
@@ -376,13 +376,13 @@ spec:
           ports: [{containerPort: 8080}]
           env:
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mock-llm
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: mock-llm}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -391,7 +391,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: aws-lambda-trigger
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: aws-lambda-trigger}}
@@ -411,13 +411,13 @@ spec:
             - {name: FAAS_PROVIDER, value: aws}
             - {name: TRIGGER_DELAY_MS, value: "6500"}
             - {name: CLOUD_REGION, value: us-east-1}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: azure-functions-trigger
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: azure-functions-trigger}}
@@ -437,13 +437,13 @@ spec:
             - {name: FAAS_PROVIDER, value: azure}
             - {name: TRIGGER_DELAY_MS, value: "7500"}
             - {name: CLOUD_REGION, value: westeurope}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: google-cloud-function-trigger
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: google-cloud-function-trigger}}
@@ -463,13 +463,13 @@ spec:
             - {name: FAAS_PROVIDER, value: gcp}
             - {name: TRIGGER_DELAY_MS, value: "8500"}
             - {name: CLOUD_REGION, value: europe-west3}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grpc-service
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: grpc-service}}
@@ -486,13 +486,13 @@ spec:
           ports: [{name: grpc, containerPort: 50051}]
           env:
             - {name: SCENARIO_MODE, value: stable}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: grpc-service
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: grpc-service}
   ports: [{name: grpc, port: 50051, targetPort: 50051}]
@@ -501,7 +501,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: load-generator
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: load-generator}}
@@ -515,13 +515,13 @@ spec:
       containers:
         - name: load-generator
           image: ${IMAGE_REGISTRY}/load-generator:${IMAGE_TAG}
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cache-exporter
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: cache-exporter}}
@@ -537,19 +537,19 @@ spec:
         metrics.dynatrace.com/scrape: "true"
         metrics.dynatrace.com/port: "15020"
         metrics.dynatrace.com/path: /stats/prometheus
-        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["traceforge_*"]}'
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
     spec:
       containers:
         - name: cache-exporter
           image: ${IMAGE_REGISTRY}/cache-exporter:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: cache-exporter
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   selector: {app: cache-exporter}
   ports: [{name: http, port: 8080, targetPort: 8080}]
@@ -558,7 +558,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: queue-exporter
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   replicas: 1
   selector: {matchLabels: {app: queue-exporter}}
@@ -574,10 +574,10 @@ spec:
         metrics.dynatrace.com/scrape: "true"
         metrics.dynatrace.com/port: "15020"
         metrics.dynatrace.com/path: /stats/prometheus
-        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["traceforge_*"]}'
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
     spec:
       containers:
         - name: queue-exporter
           image: ${IMAGE_REGISTRY}/queue-exporter:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
-          envFrom: [{configMapRef: {name: traceforge-config}}]
+          envFrom: [{configMapRef: {name: obs-demo-config}}]

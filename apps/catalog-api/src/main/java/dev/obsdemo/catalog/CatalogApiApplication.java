@@ -1,4 +1,4 @@
-package dev.traceforge.catalog;
+package dev.obsdemo.catalog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

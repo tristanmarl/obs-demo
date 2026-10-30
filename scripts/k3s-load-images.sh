@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_REGISTRY="${IMAGE_REGISTRY:-traceforge}"
+IMAGE_REGISTRY="${IMAGE_REGISTRY:-obs-demo}"
 IMAGE_TAG="${IMAGE_TAG:-dev}"
 SERVICES="control-ui gateway-api catalog-api job-api cache-api job-worker result-api analysis-api mock-llm load-generator function-trigger grpc-service cache-exporter queue-exporter"
 

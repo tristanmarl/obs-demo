@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: host-db
-  namespace: traceforge
+  namespace: obs-demo
 spec:
   ports:
     - {name: tcp-mysql, port: 3306, targetPort: 3306}
@@ -11,7 +11,7 @@ apiVersion: discovery.k8s.io/v1
 kind: EndpointSlice
 metadata:
   name: host-db
-  namespace: traceforge
+  namespace: obs-demo
   labels:
     kubernetes.io/service-name: host-db
 addressType: IPv4

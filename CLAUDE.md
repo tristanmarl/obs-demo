@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-TraceForge is a Kubernetes workload for exploring observability in a distributed system.
+Observability Demo is a Kubernetes workload for exploring observability in a distributed system.
 
 ## Commands
 
@@ -26,15 +26,15 @@ gateway-api -> cache-api -> Redis
 gateway-api -> analysis-api -> mock-llm
 gateway-api -> job-api -> PostgreSQL -> ActiveMQ jobs.requested
 job-worker -> grpc-service (ValidateJob, ExecuteJob, VerifyJob) -> result-api
-tf-edge-agent (EC2, systemd) -> istio ingress -> gateway-api
+obs-edge-agent (EC2, systemd) -> istio ingress -> gateway-api
 result-api -> host-db (MariaDB on EC2)
 cache-exporter (Go, OneAgent)  -- polls Redis, exposes /metrics (Prometheus scrape, variant=oneagent)
 queue-exporter (Python, OTLP)  -- polls PostgreSQL, exposes /metrics (Prometheus scrape, variant=otlp)
 ```
 
-Both exporters are scraped by ActiveGate via Istio's merged endpoint (`15020/stats/prometheus`). Prometheus names use underscores (`traceforge_*`); OTel names use dots (`traceforge.*`). Run `make enable-prometheus-scraping` for prerequisites.
+Both exporters are scraped by ActiveGate via Istio's merged endpoint (`15020/stats/prometheus`). Prometheus names use underscores (`obs_demo_*`); OTel names use dots (`obs_demo.*`). Run `make enable-prometheus-scraping` for prerequisites.
 
-Workload names and OTel `service.name` values are identical. `apps/otel_setup.py` adds `service.namespace=traceforge`, `deployment.environment.name=demo`, and the `SERVICE_VERSION` value. Do not hardcode OTLP endpoints or tokens.
+Workload names and OTel `service.name` values are identical. `apps/otel_setup.py` adds `service.namespace=obs-demo`, `deployment.environment.name=demo`, and the `SERVICE_VERSION` value. Do not hardcode OTLP endpoints or tokens.
 
 ## Trace stitching
 

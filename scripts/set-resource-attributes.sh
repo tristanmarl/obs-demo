@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAMESPACE="${APP_NAMESPACE:-traceforge}"
-DATA_NAMESPACE="${DATA_NAMESPACE:-traceforge-data}"
+APP_NAMESPACE="${APP_NAMESPACE:-obs-demo}"
+DATA_NAMESPACE="${DATA_NAMESPACE:-obs-demo-data}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
@@ -12,12 +12,12 @@ Usage:
   scripts/set-resource-attributes.sh --append "key=value,key2=value2"
   scripts/set-resource-attributes.sh --show
 
-Patches OTEL_RESOURCE_ATTRIBUTES on TraceForge workloads and restarts them.
+Patches OTEL_RESOURCE_ATTRIBUTES on Observability Demo workloads and restarts them.
 Also updates .env when it exists so the next deploy keeps the same value.
 
 Environment:
-  APP_NAMESPACE=traceforge
-  DATA_NAMESPACE=traceforge-data
+  APP_NAMESPACE=obs-demo
+  DATA_NAMESPACE=obs-demo-data
 EOF
 }
 

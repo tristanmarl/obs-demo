@@ -1,6 +1,6 @@
-# TraceForge
+# Observability Demo
 
-TraceForge is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
+Observability Demo is a small Kubernetes workload for exploring observability in a distributed system. It generates connected HTTP, database, Redis, messaging, gRPC, simulated FaaS, AI, service-map, and memory-profiling signals using OneAgent, OpenTelemetry, and ActiveGate-scraped Prometheus metrics.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ flowchart LR
 
 The control UI submits an asynchronous job, queries catalog data, calls Redis, calls the optional AI path, applies deterministic failure scenarios, and edits shared telemetry context for a private demo environment. It does not imitate a company or business process.
 
-![TraceForge control UI](docs/images/traceforge-control-ui.jpg)
+![Observability Demo control UI](docs/images/obs-demo-control-ui.jpg)
 
 The screenshot shows the live control surface with background load, manual request controls, failure scenarios, and telemetry context editing.
 
@@ -44,7 +44,7 @@ make app-url
 For an existing Istio and Dynatrace Operator installation:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/tristanmarl/traceforge/main/deploy/dist/traceforge.yaml
+kubectl apply -f https://raw.githubusercontent.com/tristanmarl/obs-demo/main/deploy/dist/obs-demo.yaml
 ```
 
 For a full setup, provide an environment Access Token and run `setup.sh`. The script uses the canonical app manifest and a stable Dynatrace Operator release.
@@ -55,7 +55,7 @@ For a full setup, provide an environment Access Token and run `setup.sh`. The sc
 
 ## Host monitoring
 
-An optional chain runs on the k3s EC2 host itself: `tf-edge-agent` (systemd) submits jobs through the Istio ingress, `result-api` writes to a MariaDB on the host, and a Dynatrace OTel Collector reports `otel:host` and `otel:process` entities. Run `make host-monitoring` on the host; see `docs/host-monitoring.md`.
+An optional chain runs on the k3s EC2 host itself: `obs-edge-agent` (systemd) submits jobs through the Istio ingress, `result-api` writes to a MariaDB on the host, and a Dynatrace OTel Collector reports `otel:host` and `otel:process` entities. Run `make host-monitoring` on the host; see `docs/host-monitoring.md`.
 
 ## Controls
 
@@ -82,7 +82,7 @@ The target checks shell syntax, resource-attribute validation, Python syntax, Go
 
 ```bash
 make k3s-load-images
-IMAGE_REGISTRY=traceforge IMAGE_TAG=dev ./scripts/deploy-demo.sh
-kubectl -n traceforge get pods
-kubectl -n traceforge-data get pods
+IMAGE_REGISTRY=obs-demo IMAGE_TAG=dev ./scripts/deploy-demo.sh
+kubectl -n obs-demo get pods
+kubectl -n obs-demo-data get pods
 ```
