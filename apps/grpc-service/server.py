@@ -21,7 +21,7 @@ class JobExecutor(jobs_pb2_grpc.JobExecutorServicer):
 
     def ExecuteJob(self, request, context):
         if os.getenv("SCENARIO_MODE") == "grpc-deadline":
-            time.sleep(2)
+            time.sleep(4)  # exceeds the worker's 3 s gRPC deadline
         return jobs_pb2.ExecuteJobReply(healthy=True, status="executed", message="job executed")
 
     def VerifyJob(self, request, context):

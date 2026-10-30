@@ -25,11 +25,12 @@ verify:
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/apps/cache-exporter golang:1.23-alpine go test ./
 	@docker run --rm -v "$(PWD):/workspace" -w /workspace/host/edge-agent golang:1.26-alpine go test ./
 	@docker build -q --target bin host/edge-agent >/dev/null
-	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -m compileall -q /workspace/apps
+	@docker run --rm -v "$(PWD):/workspace" python:3.12-alpine python -B -m compileall -q /workspace/apps
+	@docker run --rm -v "$(PWD)/apps:/apps" -w /apps python:3.12-slim sh -c 'pip install -q --root-user-action=ignore opentelemetry-sdk==1.35.0 opentelemetry-exporter-otlp-proto-http==1.35.0 >/dev/null 2>&1 && python -B -m unittest test_otel_setup'
 	@docker build -f apps/catalog-api/Dockerfile apps/catalog-api
 	@docker build -f apps/grpc-service/Dockerfile apps
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; cp deploy/dist/obs-demo.yaml "$$tmp"; env -i PATH="$$PATH" ./scripts/render-install-yaml.sh --no-env >/dev/null; diff -q "$$tmp" deploy/dist/obs-demo.yaml >/dev/null
-	@test -z "$$(rg -n '\$$\{[^}]+\}' deploy/dist/obs-demo.yaml)"
+	@! grep -nE '\$$\{[^}]+\}' deploy/dist/obs-demo.yaml
 	@$(MAKE) build-images
 
 run-local: build-images

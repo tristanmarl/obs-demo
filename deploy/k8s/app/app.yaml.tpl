@@ -124,12 +124,29 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: control-ui
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: control-ui
           image: ${IMAGE_REGISTRY}/control-ui:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 128Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -154,6 +171,11 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: gateway-api
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       serviceAccountName: gateway-api
       containers:
@@ -161,6 +183,18 @@ spec:
           image: ${IMAGE_REGISTRY}/gateway-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 384Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -185,6 +219,11 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: catalog-api
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: catalog-api
@@ -196,8 +235,17 @@ spec:
             - {name: SPRING_DATASOURCE_PASSWORD, value: obs_demo}
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 5
           resources:
-            requests: {cpu: 100m, memory: 128Mi}
+            requests: {cpu: 100m, memory: 256Mi}
             limits: {memory: 1Gi}
 ---
 apiVersion: v1
@@ -223,12 +271,28 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: job-api
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: job-api
           image: ${IMAGE_REGISTRY}/job-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 256Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -253,6 +317,11 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: cache-api
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: cache-api
@@ -261,6 +330,18 @@ spec:
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {memory: 128Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -285,6 +366,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: job-worker
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: job-worker
@@ -292,6 +377,9 @@ spec:
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 256Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -307,6 +395,11 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: result-api
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: result-api
@@ -315,6 +408,18 @@ spec:
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {memory: 192Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -339,12 +444,28 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: analysis-api
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: analysis-api
           image: ${IMAGE_REGISTRY}/analysis-api:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {memory: 256Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -369,6 +490,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: mock-llm
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: mock-llm
@@ -377,6 +502,18 @@ spec:
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {memory: 256Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -401,6 +538,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: aws-lambda-trigger
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: aws-lambda-trigger
@@ -412,6 +553,9 @@ spec:
             - {name: TRIGGER_DELAY_MS, value: "6500"}
             - {name: CLOUD_REGION, value: us-east-1}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 192Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -427,6 +571,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: azure-functions-trigger
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: azure-functions-trigger
@@ -438,6 +586,9 @@ spec:
             - {name: TRIGGER_DELAY_MS, value: "7500"}
             - {name: CLOUD_REGION, value: westeurope}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 192Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -453,6 +604,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: google-cloud-function-trigger
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: google-cloud-function-trigger
@@ -464,6 +619,9 @@ spec:
             - {name: TRIGGER_DELAY_MS, value: "8500"}
             - {name: CLOUD_REGION, value: europe-west3}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 192Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -479,6 +637,10 @@ spec:
       annotations:
         otlp-exporter-configuration.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: grpc-service
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: grpc-service
@@ -487,6 +649,18 @@ spec:
           env:
             - {name: SCENARIO_MODE, value: stable}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            tcpSocket: {port: 50051}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: 50051}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 256Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -511,11 +685,19 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: load-generator
+        container.inject.dynatrace.com/istio-proxy: "false"
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "15020"
+        metrics.dynatrace.com/path: /stats/prometheus
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: load-generator
           image: ${IMAGE_REGISTRY}/load-generator:${IMAGE_TAG}
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 192Mi}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -531,19 +713,32 @@ spec:
       annotations:
         oneagent.dynatrace.com/inject: "true"
         metadata.dynatrace.com/service: cache-exporter
+        container.inject.dynatrace.com/istio-proxy: "false"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: /metrics
         metrics.dynatrace.com/scrape: "true"
         metrics.dynatrace.com/port: "15020"
         metrics.dynatrace.com/path: /stats/prometheus
-        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*", "istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: cache-exporter
           image: ${IMAGE_REGISTRY}/cache-exporter:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -574,10 +769,22 @@ spec:
         metrics.dynatrace.com/scrape: "true"
         metrics.dynatrace.com/port: "15020"
         metrics.dynatrace.com/path: /stats/prometheus
-        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*"]}'
+        metrics.dynatrace.com/filter: '{"mode": "include", "names": ["obs_demo_*", "istio_requests_total", "istio_request_duration_milliseconds", "istio_tcp_connections_opened_total"]}'
     spec:
       containers:
         - name: queue-exporter
           image: ${IMAGE_REGISTRY}/queue-exporter:${IMAGE_TAG}
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: obs-demo-config}}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {memory: 256Mi}

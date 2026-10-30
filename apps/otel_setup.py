@@ -10,14 +10,18 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
-def setup(service_name, extra=None):
-    resource = Resource.create({
-        "service.name": service_name,
+def build_resource(service_name, extra=None):
+    # Defaults are overridden by OTEL_RESOURCE_ATTRIBUTES; service.name always comes from code.
+    defaults = Resource({
         "service.namespace": "obs-demo",
         "deployment.environment.name": "demo",
         "service.version": os.getenv("SERVICE_VERSION", os.getenv("IMAGE_TAG", "dev")),
-        **(extra or {}),
     })
+    return defaults.merge(Resource.create({"service.name": service_name, **(extra or {})}))
+
+
+def setup(service_name, extra=None):
+    resource = build_resource(service_name, extra)
     trace.set_tracer_provider(TracerProvider(resource=resource))
     if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") or os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"):
         trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))

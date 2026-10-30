@@ -1,6 +1,7 @@
 import json
 import os
 import queue
+import sys
 import time
 
 import grpc
@@ -34,7 +35,9 @@ ACTIVEMQ_USER = os.getenv("ACTIVEMQ_USER", "admin")
 ACTIVEMQ_PASSWORD = os.getenv("ACTIVEMQ_PASSWORD", "admin")
 JOB_QUEUE = os.getenv("JOB_QUEUE", "/queue/jobs.requested")
 SUBSCRIPTION = "job-worker"
-deliveries = queue.Queue(maxsize=32)
+GRPC_DEADLINE_SECONDS = 3
+DELIVERY_QUEUE_SIZE = 32
+deliveries = queue.Queue(maxsize=DELIVERY_QUEUE_SIZE)
 
 
 def job_request(message):
@@ -42,7 +45,7 @@ def job_request(message):
 
 
 def call_jobs(message, span):
-    deadline = 0.4 if os.getenv("SCENARIO_MODE") == "grpc-deadline" else 3
+    deadline = GRPC_DEADLINE_SECONDS
     with grpc.insecure_channel(GRPC_ADDRESS) as channel:
         stub = jobs_pb2_grpc.JobExecutorStub(channel)
         request = job_request(message)
@@ -131,9 +134,13 @@ class JobListener(stomp.ConnectionListener):
     def on_message(self, frame):
         deliveries.put(frame)
 
+    def on_disconnected(self):
+        # Crash-only: Kubernetes restarts the pod and the broker redelivers unacked messages.
+        print(json.dumps({"event": "job-worker.disconnected"}), flush=True)
+        os._exit(1)
 
-def receive_job():
-    frame = deliveries.get()
+
+def receive_job(frame):
     message = json.loads(frame.body)
     context = propagate.extract(dict(frame.headers))
     with tracer.start_as_current_span("receive jobs.requested", context=context, kind=SpanKind.CLIENT) as span:
@@ -142,7 +149,7 @@ def receive_job():
         span.set_attribute("messaging.operation.name", "receive")
         span.set_attribute("messaging.operation.type", "receive")
         span.set_attribute("messaging.message.id", message["job_id"])
-    return message, frame
+    return message
 
 
 def main():
@@ -156,20 +163,31 @@ def main():
             if attempt == 29:
                 raise
             time.sleep(2)
-    connection.subscribe(destination=JOB_QUEUE, id=SUBSCRIPTION, ack="client-individual")
+    # Prefetch equals the bounded queue so the listener thread never blocks on deliveries.put.
+    connection.subscribe(
+        destination=JOB_QUEUE,
+        id=SUBSCRIPTION,
+        ack="client-individual",
+        headers={"activemq.prefetchSize": str(DELIVERY_QUEUE_SIZE)},
+    )
     while True:
         try:
-            message, frame = receive_job()
-            success = process_job(message, frame)
-            ack_id = frame.headers["ack"]
-            if success:
-                connection.ack(id=ack_id, subscription=SUBSCRIPTION)
-            else:
-                connection.nack(id=ack_id, subscription=SUBSCRIPTION)
+            frame = deliveries.get(timeout=10)
+        except queue.Empty:
+            if not connection.is_connected():
+                print(json.dumps({"event": "job-worker.stalled"}), flush=True)
+                sys.exit(1)
+            continue
+        ack_id = frame.headers["ack"]
+        try:
+            success = process_job(receive_job(frame), frame)
         except Exception as exc:
             print(json.dumps({"event": "job-worker.error", "error": str(exc)}), flush=True)
-            if "frame" in locals() and frame.headers.get("ack"):
-                connection.nack(id=frame.headers["ack"], subscription=SUBSCRIPTION)
+            success = False
+        if success:
+            connection.ack(id=ack_id, subscription=SUBSCRIPTION)
+        else:
+            connection.nack(id=ack_id, subscription=SUBSCRIPTION)
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ jobs_gauge = Gauge(
 )
 jobs_pending = Gauge(
     "obs_demo_jobs_pending",
-    "Number of jobs in pending/requested state (queue backlog depth).",
+    "Number of jobs in queued state (queue backlog depth).",
     ["variant"],
 )
 
@@ -74,6 +74,7 @@ DATABASE_URL = os.getenv(
 
 def _poll_postgres() -> None:
     """Background thread: refresh job gauges from Postgres every 15 s."""
+    seen_statuses = set()
     while True:
         with tracer.start_as_current_span("queue.poll") as span:
             try:
@@ -81,11 +82,11 @@ def _poll_postgres() -> None:
                     rows = conn.execute(
                         "SELECT status, COUNT(*) FROM jobs GROUP BY status"
                     ).fetchall()
-                pending = 0
-                for status, count in rows:
-                    jobs_gauge.labels(status=status, variant=VARIANT).set(count)
-                    if status in ("pending", "requested"):
-                        pending += count
+                counts = dict(rows)
+                for status in seen_statuses | counts.keys():
+                    jobs_gauge.labels(status=status, variant=VARIANT).set(counts.get(status, 0))
+                seen_statuses.update(counts)
+                pending = counts.get("queued", 0)
                 jobs_pending.labels(variant=VARIANT).set(pending)
                 polls_total.add(1, {"status": "ok"})
                 span.set_attribute("db.row_count", len(rows))

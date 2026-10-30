@@ -40,6 +40,26 @@ current_from_cluster() {
     2>/dev/null || true
 }
 
+# Same rules as apps/gateway-api/resource-attrs.js.
+validate_attrs() {
+  local attrs="$1" entry key value seen=","
+  local -a entries
+  if [ "${#attrs}" -gt 2048 ]; then echo "attrs must be at most 2048 characters" >&2; return 1; fi
+  IFS=',' read -r -a entries <<< "$attrs"
+  if [ "${#entries[@]}" -gt 32 ]; then echo "attrs must contain at most 32 entries" >&2; return 1; fi
+  for entry in "${entries[@]}"; do
+    entry="${entry#"${entry%%[![:space:]]*}"}"; entry="${entry%"${entry##*[![:space:]]}"}"
+    if [ -z "$entry" ] || [[ "$entry" != *=* ]]; then echo "invalid entry '$entry'; use key=value" >&2; return 1; fi
+    key="${entry%%=*}"; value="${entry#*=}"
+    key="${key%"${key##*[![:space:]]}"}"; value="${value#"${value%%[![:space:]]*}"}"
+    if ! [[ "$key" =~ ^[A-Za-z][A-Za-z0-9_.-]{0,127}$ ]]; then echo "invalid key '$key'" >&2; return 1; fi
+    if [ -z "$value" ]; then echo "value for '$key' must not be empty" >&2; return 1; fi
+    case "$key" in service.name|service.instance.id) echo "$key is workload-specific and cannot be changed" >&2; return 1 ;; esac
+    case "$seen" in *",$key,"*) echo "duplicate key '$key'" >&2; return 1 ;; esac
+    seen="$seen$key,"
+  done
+}
+
 update_env_file() {
   local attrs="$1"
   [ -f .env ] || return 0
@@ -103,15 +123,17 @@ if [ -z "$new_attrs" ]; then
 fi
 
 if [ "$mode" = "append" ]; then
-  base="$(current_from_env)"
+  base="$(current_from_cluster)"
   if [ -z "$base" ]; then
-    base="$(current_from_cluster)"
+    base="$(current_from_env)"
   fi
   base="$(trim_commas "$base")"
   if [ -n "$base" ]; then
     new_attrs="${base},${new_attrs}"
   fi
 fi
+
+validate_attrs "$new_attrs" || exit 1
 
 echo "Setting OTEL_RESOURCE_ATTRIBUTES:"
 echo "$new_attrs"

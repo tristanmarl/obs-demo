@@ -41,7 +41,7 @@ Apply scenarios from the control UI or `POST /api/scenarios/{id}`. The gateway r
 ## grpc-deadline
 
 1. Trigger: apply **gRPC deadline**, then submit a job.
-2. Expected behavior: `grpc-service` sleeps beyond the worker deadline and the job fails/NACKs.
+2. Expected behavior: `grpc-service` `ExecuteJob` sleeps 4 s, beyond the worker's fixed 3 s deadline (DEADLINE_EXCEEDED), and the job fails/NACKs.
 3. Evidence: the job trace shows the failed unary RPC, PostgreSQL records `failed`, and the result callback receives the failure status.
 4. Dynatrace entry: open `job-worker -> grpc-service` and inspect `ValidateJob`/deadline status.
 5. Reset: reset scenarios, then submit a new job.
