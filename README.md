@@ -67,7 +67,7 @@ Alternatives: `setup.sh` installs Istio, the Dynatrace Operator and the app in o
 
 ## Scenarios
 
-Four scenarios (database latency, queue backlog, error spike, memory pressure) are boolean OpenFeature flags served by `flagd`; the control UI, `POST /api/scenarios/{id}` and `make reset` change the flag ConfigMap, so switching is instant and restarts nothing. Services evaluate flags per request, default to stable on any error, and record evaluations on spans where the runtime supports it. Each card lists where to look in Dynatrace. Runbooks: [docs/demo-scenarios.md](docs/demo-scenarios.md).
+Four scenarios (database latency, queue backlog, error spike, memory pressure) are boolean OpenFeature flags served by `flagd`; the control UI, `POST /api/scenarios/{id}` and `make reset` change the flag ConfigMap, so switching is instant and restarts nothing. Services evaluate flags per request, default to stable on any error, and record evaluations on spans where the runtime supports it. In the control UI each card has one Start/Stop button and a collapsed **Details** section with the signal, target and where to look in Dynatrace; the global resource attributes are one editable list, with presets, teams and per-workload overrides under **Advanced**. There are no manual request buttons because `load-generator` already sends the same traffic. Runbooks: [docs/demo-scenarios.md](docs/demo-scenarios.md).
 
 ```bash
 make reset    # all flags off; works with gateway-api down

@@ -8,19 +8,20 @@ const api = "/api";
 // Platform apps live on the .apps host of the tenant (heuristic for the usual .live and sprint hostnames).
 const appsBase = tenantUrl => (tenantUrl || "").replace(/\.live\./, ".apps.").replace(/\.sprint\.dynatracelabs/, ".sprint.apps.dynatracelabs");
 
-function LookIn({ scenario, tenantUrl }) {
+function Details({ scenario, tenantUrl }) {
   const [copied, setCopied] = useState("");
   const base = appsBase(tenantUrl);
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); setCopied(text); } catch { setCopied(""); }
   }
-  if (!scenario.lookIn?.length) return null;
   return (
     <details className="look-in">
-      <summary>Look in Dynatrace</summary>
+      <summary>Details</summary>
+      <dl><div><dt>Signal</dt><dd>{scenario.signal}</dd></div><div><dt>Target</dt><dd>{scenario.affectedService}</dd></div></dl>
+      <p className="look-title">Look in Dynatrace</p>
       {base && <p className="look-links"><a href={`${base}/ui/apps/dynatrace.services`} target="_blank" rel="noreferrer">Services</a> · <a href={`${base}/ui/apps/dynatrace.distributedtracing`} target="_blank" rel="noreferrer">Distributed Tracing</a> (filter <code>{scenario.service}</code>)</p>}
       <ul>
-        {scenario.lookIn.map(item => <li key={item.dql}>
+        {(scenario.lookIn || []).map(item => <li key={item.dql}>
           <span>{item.text}</span>
           <span className="snippet"><code>{item.dql}</code><button type="button" className="secondary" aria-label={`Copy DQL: ${item.dql}`} onClick={() => copy(item.dql)}>{copied === item.dql ? "Copied" : "Copy"}</button></span>
         </li>)}
@@ -29,24 +30,28 @@ function LookIn({ scenario, tenantUrl }) {
   );
 }
 
+function ActionStatus({ action }) {
+  return (
+    <div className="action-status" role="status" aria-live="polite">
+      {action && <>
+        <p>{action.label} → {action.ok ? "" : "failed: "}{action.text}</p>
+        <details>
+          <summary>Show response</summary>
+          <pre>{JSON.stringify(action.body, null, 2)}</pre>
+        </details>
+      </>}
+    </div>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
+  const [stateAvailable, setStateAvailable] = useState(true);
   const [controlsEnabled, setControlsEnabled] = useState(true);
-  const [result, setResult] = useState(null);
-  const [operation, setOperation] = useState("");
+  const [action, setAction] = useState(null);
   const [pendingScenario, setPendingScenario] = useState(null);
-  const [job, setJob] = useState({ name: "demo-job", workUnits: 10 });
-
-  async function callApi(path, options = {}) {
-    const response = await fetch(`${api}${path}`, options);
-    const text = await response.text();
-    let body;
-    try { body = JSON.parse(text); } catch { body = { body: text }; }
-    setResult({ path, status: response.status, body });
-    return { response, body };
-  }
 
   async function refreshScenarios() {
     try {
@@ -55,9 +60,10 @@ function App() {
       const body = await response.json();
       setScenarios(body.scenarios || []);
       setActiveScenario(body.activeScenario || null);
+      setStateAvailable(body.stateAvailable !== false);
       setControlsEnabled(body.controlsEnabled !== false);
     } catch {
-      setOperation("Scenario state unavailable");
+      setStateAvailable(false);
     }
   }
 
@@ -69,46 +75,18 @@ function App() {
     refreshScenarios();
   }, []);
 
-  async function runAction(label, path, options) {
-    setOperation(`${label} running…`);
+  async function runScenario(label, path) {
+    setPendingScenario(path);
+    setAction({ label, ok: true, text: "running…", body: null });
     try {
-      const { response } = await callApi(path, options);
-      setOperation(`${label}: HTTP ${response.status}`);
-    } catch {
-      setOperation(`${label}: unavailable`);
-    }
-  }
-
-  async function submitJob(event) {
-    event.preventDefault();
-    await runAction("Submit asynchronous job", "/jobs", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(job),
-    });
-  }
-
-  async function applyScenario(id) {
-    setPendingScenario(id);
-    setOperation(`Applying ${id}…`);
-    try {
-      const { response } = await callApi(`/scenarios/${id}`, { method: "POST" });
+      const response = await fetch(`${api}${path}`, { method: "POST" });
+      const text = await response.text();
+      let body;
+      try { body = JSON.parse(text); } catch { body = { body: text }; }
+      setAction({ label, ok: response.ok, text: `${response.status} ${response.ok ? "OK" : response.statusText || "error"}`.trim(), body });
       await refreshScenarios();
-      setOperation(response.ok ? `${id} active` : `Scenario failed: HTTP ${response.status}`);
     } catch {
-      setOperation("Scenario operation unavailable");
-    } finally {
-      setPendingScenario(null);
-    }
-  }
-
-  async function resetScenarios() {
-    setPendingScenario("reset");
-    setOperation("Resetting scenarios…");
-    try {
-      const { response } = await callApi("/scenarios/reset", { method: "POST" });
-      await refreshScenarios();
-      setOperation(response.ok ? "Scenarios stable" : `Reset failed: HTTP ${response.status}`);
-    } catch {
-      setOperation("Reset unavailable");
+      setAction({ label, ok: false, text: "unavailable", body: null });
     } finally {
       setPendingScenario(null);
     }
@@ -116,52 +94,50 @@ function App() {
 
   const apiAvailable = status?.controlApi === "connected";
   const controls = controlsEnabled && apiAvailable;
+  const known = scenarios.some(scenario => scenario.id === activeScenario);
+  const activeLabel = scenarios.find(scenario => scenario.id === activeScenario)?.label || activeScenario;
+  const needsReset = activeScenario && !known || !stateAvailable;
+  const busy = pendingScenario !== null;
   return (
     <main>
       <header className="header">
-        <p className="eyebrow">Observability Demo</p>
-        <h1>Distributed systems observability lab</h1>
-        <p className="subtitle">Generate connected HTTP, PostgreSQL, Redis, ActiveMQ, gRPC, FaaS, AI, and memory signals.</p>
-        <div className={`status-bar ${!apiAvailable ? "status-bar--offline" : ""}`} role="status">
+        <h1>Observability Demo</h1>
+        <p className="subtitle">Start a failure, then find it in Dynatrace.</p>
+        <p className={`pill ${!apiAvailable ? "pill--offline" : ""}`} role="status">
           <span className="status-dot" aria-hidden="true" />
-          {apiAvailable ? "Control API connected" : "Control API unavailable"}
-          {activeScenario && <span className="active-tag">Scenario active: {activeScenario}</span>}
-        </div>
+          {apiAvailable ? "Connected" : "Control API unavailable"}
+          {activeScenario && <span className="active-tag">· {activeLabel} running</span>}
+        </p>
+        <p className="muted">Background traffic runs continuously via load-generator.</p>
       </header>
 
-      <section className="section">
-        <h2>Manual requests (optional)</h2>
-        <p>Background traffic runs automatically via <code>load-generator</code>. Use these controls for one immediate trace or a custom job.</p>
-        <form className="job-form" onSubmit={submitJob}>
-          <label htmlFor="job-name">Job name<input id="job-name" value={job.name} onChange={event => setJob({ ...job, name: event.target.value })} /></label>
-          <label htmlFor="work-units">Work units<input id="work-units" type="number" min="1" max="100" value={job.workUnits} onChange={event => setJob({ ...job, workUnits: Number(event.target.value) })} /></label>
-          <button type="submit" disabled={!apiAvailable}>Submit asynchronous job</button>
-        </form>
-        <div className="action-row">
-          <button onClick={() => runAction("Query PostgreSQL", "/catalog")} disabled={!apiAvailable}>Query PostgreSQL</button>
-          <button onClick={() => runAction("Call Redis", "/cache", { method: "POST" })} disabled={!apiAvailable}>Call Redis</button>
-          <button onClick={() => runAction("Call AI service", "/analysis")} disabled={!apiAvailable}>Call AI service</button>
-        </div>
-      </section>
+      {apiAvailable && !controlsEnabled && <p className="muted">Demo controls are disabled.</p>}
 
-      {controls && <section className="section">
-        <div className="section-heading"><div><h2>Failure scenarios</h2><p>One deterministic condition at a time; the backend is the source of truth after reload.</p></div><button className="secondary" onClick={resetScenarios} disabled={pendingScenario !== null}>Reset all</button></div>
-        <div className="scenario-grid">
-          {scenarios.map(scenario => <article className={`scenario-card ${activeScenario === scenario.id ? "scenario-card--active" : ""}`} key={scenario.id}>
-            <div className="scenario-state">{activeScenario === scenario.id ? "Active" : "Stable"}</div>
-            <h3>{scenario.label}</h3>
-            <p>{scenario.expectedSymptom}</p>
-            <dl><div><dt>Signal</dt><dd>{scenario.signal}</dd></div><div><dt>Target</dt><dd>{scenario.affectedService}</dd></div></dl>
-            <button onClick={() => applyScenario(scenario.id)} disabled={pendingScenario !== null}>{pendingScenario === scenario.id ? "Applying…" : "Apply scenario"}</button>
-            <LookIn scenario={scenario} tenantUrl={status?.tenantUrl} />
-          </article>)}
+      {controls && <section className="section" aria-labelledby="scenarios-heading">
+        <div className="section-heading">
+          <h2 id="scenarios-heading">Failure scenarios</h2>
+          {needsReset && <button type="button" className="secondary" onClick={() => runScenario("Reset", "/scenarios/reset")} disabled={busy}>Reset</button>}
         </div>
+        <div className="scenario-grid">
+          {scenarios.map(scenario => {
+            const active = activeScenario === scenario.id;
+            return (
+              <article className={`scenario-card ${active ? "scenario-card--active" : ""}`} key={scenario.id}>
+                <h3>{scenario.label}{active && <span className="running-tag">Running</span>}</h3>
+                <p>{scenario.expectedSymptom}</p>
+                <button type="button" className={active ? "secondary" : ""} aria-label={`${active ? "Stop" : "Start"} ${scenario.label}`} disabled={busy}
+                  onClick={() => (active ? runScenario(`Stop ${scenario.label}`, "/scenarios/reset") : runScenario(`Start ${scenario.label}`, `/scenarios/${scenario.id}`))}>
+                  {active ? "Stop" : "Start"}
+                </button>
+                <Details scenario={scenario} tenantUrl={status?.tenantUrl} />
+              </article>
+            );
+          })}
+        </div>
+        <ActionStatus action={action} />
       </section>}
 
-      {controls && <Attributes setOperation={setOperation} />}
-
-      <p className="operation" aria-live="polite">{operation}</p>
-      {result && <section className="result section"><h2>Live API output</h2><p>{result.path} · HTTP {result.status}</p><pre>{JSON.stringify(result.body, null, 2)}</pre></section>}
+      {controls && <Attributes />}
     </main>
   );
 }
